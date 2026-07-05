@@ -1,0 +1,60 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: finagent
+      POSTGRES_PASSWORD: finagent
+      POSTGRES_DB: finagent
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U finagent"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+  backend:
+    build: ./backend
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgresql+asyncpg://finagent:finagent@postgres:5432/finagent
+      QDRANT_URL: http://qdrant:6333
+      STATEMENTS_DIR: /app/data
+      MLFLOW_TRACKING_URI: sqlite:////app/mlflow-data/mlflow.db
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - mlflow_data:/app/mlflow-data
+    extra_hosts:
+      # lets OLLAMA_HOST=http://host.docker.internal:11434 reach an Ollama
+      # running on the host machine, on Linux too (Docker Desktop has this by default).
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  qdrant_data:
+  mlflow_data:

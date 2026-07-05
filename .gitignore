@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+*.egg-info/
+
+# Env
+.env
+
+# Node / frontend (future)
+node_modules/
+dist/
+
+# Data (user statements, must stay local)
+/data/*
+!/data/.gitkeep
+# backend/data appears when tests run health-check against default settings from backend/
+backend/data/
+
+# MLflow local tracking store
+mlruns/
+backend/mlruns/
+mlflow.db
+backend/mlflow.db
+mlartifacts/
+backend/mlartifacts/
+
+# Backups produced by scripts/backup.sh
+finagent-backup-*.tar.gz
+
+# OS
+.DS_Store
