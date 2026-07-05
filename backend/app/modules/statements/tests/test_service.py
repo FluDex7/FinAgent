@@ -116,3 +116,30 @@ async def test_delete_removes_file_and_db_row(service: StatementsService):
     assert not file_path.exists()
     with pytest.raises(StatementNotFoundError):
         await service.get(statement.id)
+
+
+async def test_resolve_paths_whole_folder_returns_all_parsed_files(service: StatementsService):
+    q1 = await service.upload(filename="q1.csv", folder="2025", content=CSV_CONTENT)
+    q2 = await service.upload(filename="q2.csv", folder="2025", content=CSV_CONTENT)
+
+    ids = await service.resolve_paths_to_statement_ids(["2025"])
+
+    assert set(ids) == {str(q1.id), str(q2.id)}
+
+
+async def test_resolve_paths_single_file(service: StatementsService):
+    q1 = await service.upload(filename="q1.csv", folder="2025", content=CSV_CONTENT)
+    await service.upload(filename="q2.csv", folder="2025", content=CSV_CONTENT)
+
+    ids = await service.resolve_paths_to_statement_ids(["2025/q1"])
+
+    assert ids == [str(q1.id)]
+
+
+async def test_resolve_paths_skips_unparsed_files(service: StatementsService):
+    (service.root / "2025").mkdir(parents=True)
+    (service.root / "2025" / "not_parsed.csv").write_bytes(CSV_CONTENT)
+
+    ids = await service.resolve_paths_to_statement_ids(["2025"])
+
+    assert ids == []

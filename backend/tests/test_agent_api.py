@@ -4,17 +4,24 @@ import pytest
 from fastapi.testclient import TestClient
 from langchain_core.messages import AIMessage
 
+from app.core.config import Settings, get_settings
 from app.main import app
 from app.modules.agent import service as service_module
 from app.modules.agent.tests.fakes import FakeToolCallingChatModel
 
 
 @pytest.fixture
-def client(monkeypatch):
+def client(monkeypatch, tmp_path):
     fake = FakeToolCallingChatModel(responses=[AIMessage(content="Привет из API")])
     monkeypatch.setattr(service_module, "get_chat_model", lambda settings: fake)
+
+    def override_settings() -> Settings:
+        return Settings(statements_dir=str(tmp_path))
+
+    app.dependency_overrides[get_settings] = override_settings
     with TestClient(app) as test_client:
         yield test_client
+    app.dependency_overrides.clear()
 
 
 def _parse_sse(raw: str) -> list[dict]:

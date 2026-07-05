@@ -9,9 +9,12 @@ from app.core.config import Settings
 from app.core.exceptions import AppError
 from app.modules.agent.graph import build_agent_graph
 from app.modules.agent.models import Chat, MessageRole
+from app.modules.agent.prompts import SYSTEM_PROMPT
 from app.modules.agent.registry import build_tools
 from app.modules.agent.repository import ChatRepository
 from app.modules.agent.schemas import ChatSummary, MessageOut, Ref
+from app.modules.statements.service import StatementsService
+from app.modules.tools.resolve_scope import resolve_scope
 from app.modules.transactions.service import TransactionsService
 from app.shared.llm import get_chat_model
 
@@ -41,6 +44,7 @@ class AgentService:
     def __init__(self, session: AsyncSession, settings: Settings) -> None:
         self.repo = ChatRepository(session)
         self.transactions = TransactionsService(session)
+        self.statements = StatementsService(session, settings)
         self.settings = settings
 
     async def list_chats(self) -> list[ChatSummary]:
@@ -103,8 +107,40 @@ class AgentService:
         )
 
         chat_model = get_chat_model(self.settings)
+
+        scope_files: list[str] = []
+        scope_auto = False
+        statement_ids: list[str] = []
+
+        if refs:
+            scope_files = [r.path for r in refs]
+            statement_ids = await self.statements.resolve_paths_to_statement_ids(scope_files)
+            yield {"event": "scope", "data": {"files": scope_files, "auto": False}}
+        else:
+            tree = await self.statements.browse_tree()
+            if any(folder.files for folder in tree):
+                resolution = await resolve_scope(chat_model, message, tree)
+                if resolution.needs_clarification:
+                    clarification = resolution.clarification or ""
+                    await self.repo.add_message(chat.id, MessageRole.agent, clarification)
+                    yield {"event": "token", "data": {"text": clarification}}
+                    yield {"event": "done", "data": {}}
+                    return
+                scope_auto = True
+                scope_files = resolution.files
+                statement_ids = await self.statements.resolve_paths_to_statement_ids(scope_files)
+                yield {"event": "scope", "data": {"files": scope_files, "auto": True}}
+
+        system_prompt = SYSTEM_PROMPT
+        if statement_ids:
+            ids_note = ", ".join(statement_ids)
+            system_prompt = (
+                f"{SYSTEM_PROMPT}\n\nОбласть данных этого вопроса ограничена statement_ids: "
+                f"{ids_note}. Всегда передавай их в параметр statement_ids инструмента sql_query."
+            )
+
         tools = build_tools(self.transactions, chat_model)
-        graph = build_agent_graph(chat_model, tools)
+        graph = build_agent_graph(chat_model, tools, system_prompt=system_prompt)
 
         tool_calls: list[dict[str, Any]] = []
         blocks: list[dict[str, Any]] = []
@@ -153,6 +189,7 @@ class AgentService:
             chat.id,
             MessageRole.agent,
             final_text,
+            scope={"files": scope_files, "auto": scope_auto} if scope_files else None,
             tools=tool_calls or None,
             blocks=blocks or None,
         )

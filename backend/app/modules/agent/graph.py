@@ -19,7 +19,9 @@ def _serialize(value: Any) -> str:
     return json.dumps(value, default=str, ensure_ascii=False)
 
 
-def build_agent_graph(chat_model: BaseChatModel, tools: list[BaseTool]) -> CompiledStateGraph:
+def build_agent_graph(
+    chat_model: BaseChatModel, tools: list[BaseTool], system_prompt: str = SYSTEM_PROMPT
+) -> CompiledStateGraph:
     """The core loop: model -> tools -> model, looping until the model stops calling tools.
 
     Tool errors are caught here and fed back as a ToolMessage so the model can react
@@ -31,7 +33,7 @@ def build_agent_graph(chat_model: BaseChatModel, tools: list[BaseTool]) -> Compi
     async def call_model(state: AgentState) -> dict:
         messages = state["messages"]
         if not messages or not isinstance(messages[0], SystemMessage):
-            messages = [SystemMessage(content=SYSTEM_PROMPT), *messages]
+            messages = [SystemMessage(content=system_prompt), *messages]
         response = await model_with_tools.ainvoke(messages)
         return {"messages": [response]}
 

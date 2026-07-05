@@ -17,6 +17,8 @@ dist/
 # Data (user statements, must stay local)
 /data/*
 !/data/.gitkeep
+# backend/data appears when tests run health-check against default settings from backend/
+backend/data/
 
 # OS
 .DS_Store

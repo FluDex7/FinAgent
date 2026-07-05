@@ -152,3 +152,24 @@ class StatementsService:
         if file_path.exists():
             file_path.unlink()
         await self.repo.delete(statement)
+
+    async def resolve_paths_to_statement_ids(self, paths: list[str]) -> list[str]:
+        """Maps resolve_scope/@-ref paths ("2025" a whole folder, "2025/Q1" one file)
+        to parsed Statement ids. Unparsed ("new") files are silently skipped —
+        they have no transactions yet."""
+        tree = await self.browse_tree()
+        by_folder = {folder.name: folder.files for folder in tree}
+
+        ids: list[str] = []
+        for raw_path in paths:
+            path = raw_path.strip("/")
+            if path in by_folder:
+                ids.extend(f.id for f in by_folder[path] if f.status == StatementStatus.parsed)
+                continue
+            folder_name, _, file_name = path.partition("/")
+            if not file_name:
+                folder_name, file_name = "", folder_name
+            for f in by_folder.get(folder_name, []):
+                if f.name == file_name and f.status == StatementStatus.parsed:
+                    ids.append(f.id)
+        return ids
