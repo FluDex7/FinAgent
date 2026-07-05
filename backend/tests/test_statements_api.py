@@ -1,5 +1,6 @@
 import io
 import uuid
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -11,6 +12,11 @@ CSV_CONTENT = (
     b"date,amount,description\n"
     b"2025-01-14,-540.00,PYATEROCHKA 5443\n"
     b"2025-01-15,-1200.50,YANDEX.TAXI\n"
+)
+
+PDF_FIXTURES = (
+    Path(__file__).parent.parent
+    / "app/modules/statements/tests/fixtures/pdf_samples"
 )
 
 
@@ -77,3 +83,26 @@ def test_upload_unsupported_format_returns_422(client: TestClient):
 def test_get_missing_statement_returns_404(client: TestClient):
     resp = client.get(f"/statements/{uuid.uuid4()}")
     assert resp.status_code == 404
+
+
+def test_upload_real_pdf_statement_parses_via_ocr_pipeline(client: TestClient):
+    content = (PDF_FIXTURES / "tbank_funds_movement.pdf").read_bytes()
+    folder = f"pytest-pdf-{uuid.uuid4().hex[:8]}"
+
+    upload_resp = client.post(
+        "/statements",
+        files={"file": ("tbank.pdf", io.BytesIO(content), "application/pdf")},
+        data={"folder": folder},
+    )
+    assert upload_resp.status_code == 200, upload_resp.text
+    statement = upload_resp.json()
+    assert statement["status"] == "parsed"
+    assert statement["transactionCount"] == 93
+
+    tx_resp = client.get(f"/statements/{statement['id']}/transactions", params={"limit": 200})
+    assert tx_resp.status_code == 200
+    transactions = tx_resp.json()
+    assert len(transactions) == 93
+    assert all(t["categoryId"] is not None for t in transactions)
+
+    client.delete(f"/statements/{statement['id']}")

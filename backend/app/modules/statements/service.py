@@ -1,4 +1,5 @@
 import uuid
+from collections.abc import Callable
 from pathlib import Path
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,9 +9,10 @@ from app.core.exceptions import PathTraversalError, StatementNotFoundError, Stat
 from app.modules.categorization.service import CategorizationService
 from app.modules.statements.models import Statement, StatementFormat, StatementStatus
 from app.modules.statements.parsers.csv_parser import parse_csv
+from app.modules.statements.parsers.pdf_parser import parse_pdf
 from app.modules.statements.repository import StatementRepository
 from app.modules.statements.schemas import DocFileOut, DocFolderOut, StatementOut
-from app.modules.transactions.schemas import TransactionOut
+from app.modules.transactions.schemas import TransactionIn, TransactionOut
 from app.modules.transactions.service import TransactionsService
 
 _SUPPORTED_EXTENSIONS = {"csv": StatementFormat.csv, "pdf": StatementFormat.pdf}
@@ -107,18 +109,19 @@ class StatementsService:
             filename=filename, folder_path=folder, source_format=source_format
         )
 
-        if source_format == StatementFormat.csv:
-            await self._parse_csv(statement, content)
-        else:
-            await self.repo.mark_error(
-                statement, "Парсинг PDF (OCR) появится на следующем шаге разработки."
-            )
+        parser = parse_csv if source_format == StatementFormat.csv else parse_pdf
+        await self._parse(statement, content, parser)
 
         return StatementOut.model_validate(statement)
 
-    async def _parse_csv(self, statement: Statement, content: bytes) -> None:
+    async def _parse(
+        self,
+        statement: Statement,
+        content: bytes,
+        parser: Callable[[bytes], list[TransactionIn]],
+    ) -> None:
         try:
-            transactions = parse_csv(content)
+            transactions = parser(content)
         except StatementParseError as exc:
             await self.repo.mark_error(statement, exc.message)
             return
