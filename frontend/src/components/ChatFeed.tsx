@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import type { BlockOut, MessageOut, ToolCallOut } from '../api/types'
+import { BlockRenderer } from './blocks/BlockRenderer'
 
 interface AgentViewData {
   text: string
@@ -192,6 +193,8 @@ function AgentBubble({ data }: { data: AgentViewData }) {
             {data.isStreaming && <span className="animate-fa-blink">▍</span>}
           </div>
         )}
+
+        {data.blocks && data.blocks.length > 0 && <BlockRenderer blocks={data.blocks} />}
 
         {data.suggestions && data.suggestions.length > 0 && (
           <div className="mt-2.5 flex flex-wrap gap-2">
