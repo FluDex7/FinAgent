@@ -106,47 +106,51 @@ class AgentService:
             refs=[r.model_dump() for r in refs] or None,
         )
 
-        chat_model = get_chat_model(self.settings)
-
         scope_files: list[str] = []
         scope_auto = False
-        statement_ids: list[str] = []
-
-        if refs:
-            scope_files = [r.path for r in refs]
-            statement_ids = await self.statements.resolve_paths_to_statement_ids(scope_files)
-            yield {"event": "scope", "data": {"files": scope_files, "auto": False}}
-        else:
-            tree = await self.statements.browse_tree()
-            if any(folder.files for folder in tree):
-                resolution = await resolve_scope(chat_model, message, tree)
-                if resolution.needs_clarification:
-                    clarification = resolution.clarification or ""
-                    await self.repo.add_message(chat.id, MessageRole.agent, clarification)
-                    yield {"event": "token", "data": {"text": clarification}}
-                    yield {"event": "done", "data": {}}
-                    return
-                scope_auto = True
-                scope_files = resolution.files
-                statement_ids = await self.statements.resolve_paths_to_statement_ids(scope_files)
-                yield {"event": "scope", "data": {"files": scope_files, "auto": True}}
-
-        system_prompt = SYSTEM_PROMPT
-        if statement_ids:
-            ids_note = ", ".join(statement_ids)
-            system_prompt = (
-                f"{SYSTEM_PROMPT}\n\nОбласть данных этого вопроса ограничена statement_ids: "
-                f"{ids_note}. Всегда передавай их в параметр statement_ids инструмента sql_query."
-            )
-
-        tools = build_tools(self.transactions, chat_model)
-        graph = build_agent_graph(chat_model, tools, system_prompt=system_prompt)
-
         tool_calls: list[dict[str, Any]] = []
         blocks: list[dict[str, Any]] = []
         final_text = ""
 
         try:
+            # get_chat_model can raise immediately (e.g. missing OPENAI_API_KEY), and so can
+            # resolve_scope's own LLM call — both must surface as `error`, not crash the stream.
+            chat_model = get_chat_model(self.settings)
+            statement_ids: list[str] = []
+
+            if refs:
+                scope_files = [r.path for r in refs]
+                statement_ids = await self.statements.resolve_paths_to_statement_ids(scope_files)
+                yield {"event": "scope", "data": {"files": scope_files, "auto": False}}
+            else:
+                tree = await self.statements.browse_tree()
+                if any(folder.files for folder in tree):
+                    resolution = await resolve_scope(chat_model, message, tree)
+                    if resolution.needs_clarification:
+                        clarification = resolution.clarification or ""
+                        await self.repo.add_message(chat.id, MessageRole.agent, clarification)
+                        yield {"event": "token", "data": {"text": clarification}}
+                        yield {"event": "done", "data": {}}
+                        return
+                    scope_auto = True
+                    scope_files = resolution.files
+                    statement_ids = await self.statements.resolve_paths_to_statement_ids(
+                        scope_files
+                    )
+                    yield {"event": "scope", "data": {"files": scope_files, "auto": True}}
+
+            system_prompt = SYSTEM_PROMPT
+            if statement_ids:
+                ids_note = ", ".join(statement_ids)
+                system_prompt = (
+                    f"{SYSTEM_PROMPT}\n\nОбласть данных этого вопроса ограничена statement_ids: "
+                    f"{ids_note}. Всегда передавай их в параметр statement_ids инструмента "
+                    "sql_query."
+                )
+
+            tools = build_tools(self.transactions, chat_model)
+            graph = build_agent_graph(chat_model, tools, system_prompt=system_prompt)
+
             inputs = {"messages": [*history, HumanMessage(content=message)]}
             async for event in graph.astream_events(inputs, version="v2"):
                 kind = event["event"]

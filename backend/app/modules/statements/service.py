@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
 from app.core.exceptions import PathTraversalError, StatementNotFoundError, StatementParseError
+from app.modules.categorization.service import CategorizationService
 from app.modules.statements.models import Statement, StatementFormat, StatementStatus
 from app.modules.statements.parsers.csv_parser import parse_csv
 from app.modules.statements.repository import StatementRepository
@@ -19,6 +20,7 @@ class StatementsService:
     def __init__(self, session: AsyncSession, settings: Settings) -> None:
         self.repo = StatementRepository(session)
         self.transactions = TransactionsService(session)
+        self.categorization = CategorizationService(self.transactions, settings)
         self.root = Path(settings.statements_dir)
         self.root.mkdir(parents=True, exist_ok=True)
 
@@ -121,7 +123,8 @@ class StatementsService:
             await self.repo.mark_error(statement, exc.message)
             return
 
-        await self.transactions.bulk_create(statement.id, transactions)
+        rows = await self.transactions.bulk_create(statement.id, transactions)
+        await self.categorization.categorize_transactions(rows)
         dates = [t.date for t in transactions]
         await self.repo.mark_parsed(
             statement,

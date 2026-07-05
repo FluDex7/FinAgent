@@ -22,3 +22,10 @@ class TransactionOut(CamelModel):
     raw_description: str
     merchant_id: uuid.UUID | None
     category_id: uuid.UUID | None
+
+
+class CategoryOut(CamelModel):
+    id: uuid.UUID
+    name: str
+    color: str
+    is_system: bool
