@@ -1,21 +1,5 @@
-import { useEffect, useState } from 'react'
-
-type Theme = 'light' | 'dark'
-
-function useTheme(): [Theme, () => void] {
-  const [theme, setTheme] = useState<Theme>(() => {
-    const stored = localStorage.getItem('fa-theme')
-    return stored === 'dark' ? 'dark' : 'light'
-  })
-
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme)
-    localStorage.setItem('fa-theme', theme)
-  }, [theme])
-
-  const toggle = () => setTheme((t) => (t === 'light' ? 'dark' : 'light'))
-  return [theme, toggle]
-}
+import { useEffect } from 'react'
+import { useAppStore } from './store/useAppStore'
 
 const CLOUDS = [
   { top: '6%', left: '-3%', width: 360, height: 130, blur: 6, anim: 'drift 24s ease-in-out infinite alternate', opacity: 0.9 },
@@ -25,7 +9,12 @@ const CLOUDS = [
 ]
 
 function App() {
-  const [theme, toggleTheme] = useTheme()
+  const theme = useAppStore((s) => s.theme)
+  const toggleTheme = useAppStore((s) => s.toggleTheme)
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+  }, [theme])
 
   return (
     <div
