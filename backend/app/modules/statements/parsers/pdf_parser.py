@@ -1,12 +1,11 @@
 import re
-import subprocess
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 
 import cv2
+import fitz  # PyMuPDF
 import numpy as np
 import pytesseract
-from pdf2image import convert_from_bytes
 
 from app.core.exceptions import StatementParseError
 from app.modules.transactions.schemas import TransactionIn
@@ -38,27 +37,21 @@ def _is_noise_line(line: str, markers: tuple[str, ...]) -> bool:
     upper = stripped.upper()
     return any(marker in upper for marker in markers)
 
+
 _MIN_NATIVE_TEXT_LENGTH = 200
 """Below this, a PDF has effectively no embedded text — it's a scan, OCR is needed."""
 
 
 def _extract_native_text(content: bytes) -> str:
-    """pdftotext -layout preserves column alignment for digitally-generated
-    statements (the overwhelmingly common case) far better than OCR ever could,
-    since it reads real glyph positions instead of re-recognizing pixels."""
+    """get_text(sort=True) reconstructs reading order (row-by-row across columns) from
+    real glyph positions — for the digitally-generated statements real banks issue (the
+    overwhelmingly common case), this beats OCR outright and needs no system dependency
+    beyond the pure-Python PyMuPDF package."""
     try:
-        result = subprocess.run(
-            ["pdftotext", "-layout", "-", "-"],
-            input=content,
-            capture_output=True,
-            timeout=30,
-            check=False,
-        )
-    except (OSError, subprocess.TimeoutExpired):
+        with fitz.open(stream=content, filetype="pdf") as doc:
+            return "\n".join(page.get_text("text", sort=True) for page in doc)
+    except Exception:  # noqa: BLE001 - not a valid/parseable PDF; let parse_pdf report it
         return ""
-    if result.returncode != 0:
-        return ""
-    return result.stdout.decode("utf-8", errors="ignore")
 
 
 def _preprocess_for_ocr(image: np.ndarray) -> np.ndarray:
@@ -69,16 +62,26 @@ def _preprocess_for_ocr(image: np.ndarray) -> np.ndarray:
 
 
 def _extract_ocr_text(content: bytes) -> str:
-    """Fallback for genuinely scanned/photographed statements with no embedded text."""
+    """Fallback for genuinely scanned/photographed statements with no embedded text —
+    PyMuPDF rasterizes the page itself, no poppler/pdftoppm needed."""
     try:
-        pages = convert_from_bytes(content, dpi=300)
+        texts = []
+        with fitz.open(stream=content, filetype="pdf") as doc:
+            for page in doc:
+                pix = page.get_pixmap(dpi=300)
+                rgba_or_rgb = np.frombuffer(pix.samples, dtype=np.uint8).reshape(
+                    pix.height, pix.width, pix.n
+                )
+                image = (
+                    cv2.cvtColor(rgba_or_rgb, cv2.COLOR_RGBA2RGB)
+                    if pix.n == 4
+                    else rgba_or_rgb
+                )
+                preprocessed = _preprocess_for_ocr(image)
+                texts.append(pytesseract.image_to_string(preprocessed, lang="rus+eng"))
+        return "\n".join(texts)
     except Exception:  # noqa: BLE001 - not a valid/renderable PDF; let parse_pdf report it
         return ""
-    texts = []
-    for page in pages:
-        preprocessed = _preprocess_for_ocr(np.array(page))
-        texts.append(pytesseract.image_to_string(preprocessed, lang="rus+eng"))
-    return "\n".join(texts)
 
 
 def _split_columns(line: str) -> list[str]:
