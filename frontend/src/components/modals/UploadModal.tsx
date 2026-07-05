@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import type { DragEvent } from 'react'
 import { uploadStatement } from '../../api/statements'
+import { useEscapeKey } from '../../hooks/useEscapeKey'
 import { useAppStore } from '../../store/useAppStore'
 
 interface UploadModalProps {
@@ -46,6 +47,7 @@ export function UploadModal({ onClose }: UploadModalProps) {
   const [errorMessage, setErrorMessage] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
   const loadDocuments = useAppStore((s) => s.loadDocuments)
+  useEscapeKey(onClose)
 
   const runUpload = async (selected: File) => {
     setFile(selected)

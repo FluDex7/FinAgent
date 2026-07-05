@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEscapeKey } from '../hooks/useEscapeKey'
 import { useAppStore } from '../store/useAppStore'
 import type { DocFolderOut, Ref } from '../api/types'
 
@@ -53,6 +54,7 @@ export function AtPicker({ onPick, onClose }: AtPickerProps) {
   const documentsTree = useAppStore((s) => s.documentsTree)
   const [query, setQuery] = useState('')
   const containerRef = useRef<HTMLDivElement>(null)
+  useEscapeKey(onClose)
 
   const items = useMemo(() => flattenDocuments(documentsTree), [documentsTree])
   const filtered = items.filter((item) => item.path.toLowerCase().includes(query.toLowerCase()))

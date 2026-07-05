@@ -1,3 +1,5 @@
+import { useEscapeKey } from '../hooks/useEscapeKey'
+
 interface ConfirmDialogProps {
   title: string
   message: string
@@ -7,6 +9,8 @@ interface ConfirmDialogProps {
 }
 
 export function ConfirmDialog({ title, message, confirmLabel = 'Удалить', onConfirm, onCancel }: ConfirmDialogProps) {
+  useEscapeKey(onCancel)
+
   return (
     <div
       onClick={onCancel}

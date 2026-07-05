@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { listCategories, listMerchants, recategorizeMerchant } from '../../api/categorization'
+import { useEscapeKey } from '../../hooks/useEscapeKey'
 import { useAppStore } from '../../store/useAppStore'
 import type { CategoryOut, MerchantOut } from '../../api/types'
 
@@ -23,6 +24,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
   const [categories, setCategories] = useState<CategoryOut[]>([])
   const [reviewMerchants, setReviewMerchants] = useState<MerchantOut[]>([])
   const [loading, setLoading] = useState(true)
+  useEscapeKey(onClose)
 
   useEffect(() => {
     let cancelled = false

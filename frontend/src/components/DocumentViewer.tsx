@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { listCategories, listMerchants } from '../api/categorization'
 import { getStatement, getStatementTransactions } from '../api/statements'
+import { useEscapeKey } from '../hooks/useEscapeKey'
 import type { CategoryOut, MerchantOut, StatementOut, TransactionOut } from '../api/types'
 
 interface DocumentViewerProps {
@@ -47,6 +48,7 @@ export function DocumentViewer({ statementId, onClose }: DocumentViewerProps) {
   const [merchants, setMerchants] = useState<MerchantOut[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  useEscapeKey(onClose)
 
   useEffect(() => {
     let cancelled = false
