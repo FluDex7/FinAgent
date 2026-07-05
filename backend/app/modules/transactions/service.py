@@ -1,4 +1,5 @@
 import uuid
+from decimal import Decimal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -54,3 +55,8 @@ class TransactionsService:
         category_id: uuid.UUID | None,
     ) -> None:
         await self.repo.update_transaction_category(transaction_id, merchant_id, category_id)
+
+    async def sum_by_category(
+        self, statement_ids: list[uuid.UUID], *, expenses_only: bool = False
+    ) -> dict[uuid.UUID | None, Decimal]:
+        return await self.repo.sum_by_category(statement_ids, expenses_only=expenses_only)

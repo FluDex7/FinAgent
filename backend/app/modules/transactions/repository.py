@@ -1,6 +1,7 @@
 import uuid
+from decimal import Decimal
 
-from sqlalchemy import select, text
+from sqlalchemy import ColumnElement, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.transactions.models import Category, Merchant, MerchantSource, Transaction
@@ -101,3 +102,17 @@ class TransactionRepository:
         transaction.merchant_id = merchant_id
         transaction.category_id = category_id
         await self.session.flush()
+
+    async def sum_by_category(
+        self, statement_ids: list[uuid.UUID], *, expenses_only: bool = False
+    ) -> dict[uuid.UUID | None, Decimal]:
+        conditions: list[ColumnElement[bool]] = [Transaction.statement_id.in_(statement_ids)]
+        if expenses_only:
+            conditions.append(Transaction.amount < 0)
+        stmt = (
+            select(Transaction.category_id, func.sum(Transaction.amount))
+            .where(*conditions)
+            .group_by(Transaction.category_id)
+        )
+        result = await self.session.execute(stmt)
+        return dict(result.all())
