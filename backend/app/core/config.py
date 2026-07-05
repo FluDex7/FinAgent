@@ -22,6 +22,9 @@ class Settings(BaseSettings):
 
     statements_dir: str = "./data"
 
+    mlflow_tracking_uri: str = "sqlite:///./mlflow.db"
+    mlflow_experiment_name: str = "finagent"
+
 
 @lru_cache
 def get_settings() -> Settings:

@@ -85,6 +85,14 @@ def check_statements_dir(settings: Settings) -> CheckResult:
     return CheckResult("Папка выписок", True, f"{path} (найдено {len(files)} файлов)")
 
 
+def check_mlflow(settings: Settings) -> CheckResult:
+    return CheckResult(
+        "MLflow-трассировка",
+        True,
+        f"{settings.mlflow_tracking_uri} (эксперимент «{settings.mlflow_experiment_name}»)",
+    )
+
+
 def check_tesseract() -> CheckResult:
     binary = shutil.which("tesseract")
     if not binary:
@@ -112,4 +120,5 @@ async def run_health_checks(engine: AsyncEngine, settings: Settings) -> list[Che
         await check_llm_provider(settings),
         check_statements_dir(settings),
         check_tesseract(),
+        check_mlflow(settings),
     ]

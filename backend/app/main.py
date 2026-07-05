@@ -9,12 +9,14 @@ from app.core.exceptions import AppError
 from app.core.health import CheckResult, run_health_checks
 from app.core.logging import print_health_banner, setup_logging
 from app.core.schemas import CamelModel
+from app.core.tracing import setup_tracing
 from app.modules.agent.router import router as agent_router
 from app.modules.categorization.router import router as categorization_router
 from app.modules.statements.router import router as statements_router
 
 settings = get_settings()
 setup_logging(settings.log_level)
+setup_tracing(settings)
 
 
 @asynccontextmanager

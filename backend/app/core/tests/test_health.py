@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from app.core.config import Settings
 from app.core.health import (
     check_llm_provider,
+    check_mlflow,
     check_postgres,
     check_qdrant,
     check_statements_dir,
@@ -85,3 +86,13 @@ def test_check_tesseract_missing(monkeypatch):
     result = check_tesseract()
     assert result.ok is False
     assert result.hint
+
+
+def test_check_mlflow_reports_configured_uri():
+    settings = make_settings(
+        mlflow_tracking_uri="sqlite:///./mlflow.db", mlflow_experiment_name="finagent"
+    )
+    result = check_mlflow(settings)
+    assert result.ok is True
+    assert "mlflow.db" in result.detail
+    assert "finagent" in result.detail

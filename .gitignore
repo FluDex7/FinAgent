@@ -20,5 +20,13 @@ dist/
 # backend/data appears when tests run health-check against default settings from backend/
 backend/data/
 
+# MLflow local tracking store
+mlruns/
+backend/mlruns/
+mlflow.db
+backend/mlflow.db
+mlartifacts/
+backend/mlartifacts/
+
 # OS
 .DS_Store
