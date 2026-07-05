@@ -1,9 +1,22 @@
+import { lazy, Suspense } from 'react'
 import type { BlockOut } from '../../api/types'
-import { BarsBlock } from './BarsBlock'
-import { DonutBlock } from './DonutBlock'
-import { LineBlock } from './LineBlock'
 import { MetricsBlock } from './MetricsBlock'
 import { TableBlock } from './TableBlock'
+
+const DonutBlock = lazy(() => import('./DonutBlock').then((m) => ({ default: m.DonutBlock })))
+const BarsBlock = lazy(() => import('./BarsBlock').then((m) => ({ default: m.BarsBlock })))
+const LineBlock = lazy(() => import('./LineBlock').then((m) => ({ default: m.LineBlock })))
+
+function ChartFallback() {
+  return (
+    <div
+      className="flex h-[180px] items-center justify-center rounded-2xl border text-[12.5px]"
+      style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)', color: 'var(--color-muted)' }}
+    >
+      Загрузка графика…
+    </div>
+  )
+}
 
 export function BlockRenderer({ blocks }: { blocks: BlockOut[] }) {
   if (blocks.length === 0) return null
@@ -15,11 +28,23 @@ export function BlockRenderer({ blocks }: { blocks: BlockOut[] }) {
           case 'metrics':
             return <MetricsBlock key={i} data={block.data} />
           case 'donut':
-            return <DonutBlock key={i} data={block.data} />
+            return (
+              <Suspense key={i} fallback={<ChartFallback />}>
+                <DonutBlock data={block.data} />
+              </Suspense>
+            )
           case 'bars':
-            return <BarsBlock key={i} data={block.data} />
+            return (
+              <Suspense key={i} fallback={<ChartFallback />}>
+                <BarsBlock data={block.data} />
+              </Suspense>
+            )
           case 'line':
-            return <LineBlock key={i} data={block.data} />
+            return (
+              <Suspense key={i} fallback={<ChartFallback />}>
+                <LineBlock data={block.data} />
+              </Suspense>
+            )
           case 'table':
             return <TableBlock key={i} data={block.data} />
           default:
