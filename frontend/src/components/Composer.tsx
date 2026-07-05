@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import type { KeyboardEvent } from 'react'
 import { useAppStore } from '../store/useAppStore'
+import { AtPicker } from './AtPicker'
+import type { Ref } from '../api/types'
 
 interface ComposerProps {
-  onOpenAt: () => void
   onOpenUpload: () => void
 }
 
@@ -35,8 +36,18 @@ function SendIcon() {
   )
 }
 
-export function Composer({ onOpenAt, onOpenUpload }: ComposerProps) {
+function RemoveIcon() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+      <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+export function Composer({ onOpenUpload }: ComposerProps) {
   const [input, setInput] = useState('')
+  const [atOpen, setAtOpen] = useState(false)
+  const [pendingRefs, setPendingRefs] = useState<Ref[]>([])
   const isStreaming = useAppStore((s) => s.isStreaming)
   const sendMessage = useAppStore((s) => s.sendMessage)
   const stopStreaming = useAppStore((s) => s.stopStreaming)
@@ -46,8 +57,10 @@ export function Composer({ onOpenAt, onOpenUpload }: ComposerProps) {
   const handleSend = () => {
     if (!canSend) return
     const text = input.trim()
+    const refs = pendingRefs
     setInput('')
-    void sendMessage(text)
+    setPendingRefs([])
+    void sendMessage(text, refs)
   }
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -57,13 +70,40 @@ export function Composer({ onOpenAt, onOpenUpload }: ComposerProps) {
     }
   }
 
+  const addRef = (ref: Ref) => {
+    setPendingRefs((prev) => (prev.some((r) => r.path === ref.path) ? prev : [...prev, ref]))
+    setAtOpen(false)
+  }
+
+  const removeRef = (path: string) => {
+    setPendingRefs((prev) => prev.filter((r) => r.path !== path))
+  }
+
   return (
     <div className="flex-shrink-0 px-6 pb-[18px]">
       <div className="relative mx-auto max-w-[760px]">
+        {atOpen && <AtPicker onPick={addRef} onClose={() => setAtOpen(false)} />}
+
         <div
           className="rounded-2xl border p-2 pl-3.5"
           style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)', boxShadow: '0 2px 12px rgba(15,23,42,.04)' }}
         >
+          {pendingRefs.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 px-0 py-1">
+              {pendingRefs.map((ref) => (
+                <span
+                  key={ref.path}
+                  className="inline-flex items-center gap-1.5 rounded-md py-1 pl-2 pr-1 font-mono text-[11.5px]"
+                  style={{ color: 'var(--color-accent)', background: 'var(--color-accent-soft)' }}
+                >
+                  @{ref.path}
+                  <button type="button" onClick={() => removeRef(ref.path)} className="flex" style={{ color: 'var(--color-accent)' }}>
+                    <RemoveIcon />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -76,9 +116,12 @@ export function Composer({ onOpenAt, onOpenUpload }: ComposerProps) {
           <div className="mt-0.5 flex items-center gap-1.5">
             <button
               type="button"
-              onClick={onOpenAt}
+              onClick={() => setAtOpen((v) => !v)}
               className="flex h-8 w-8 items-center justify-center rounded-[9px] border"
-              style={{ borderColor: 'var(--color-border)', color: 'var(--color-muted)' }}
+              style={{
+                borderColor: atOpen ? 'var(--color-accent)' : 'var(--color-border)',
+                color: atOpen ? 'var(--color-accent)' : 'var(--color-muted)',
+              }}
             >
               <AtIcon />
             </button>

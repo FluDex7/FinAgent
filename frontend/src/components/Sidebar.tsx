@@ -4,6 +4,7 @@ import { useAppStore } from '../store/useAppStore'
 interface SidebarProps {
   onOpenUpload: () => void
   onOpenSettings: () => void
+  onOpenDocument: (statementId: string) => void
 }
 
 function PlusIcon() {
@@ -93,7 +94,7 @@ function SettingsIcon() {
   )
 }
 
-export function Sidebar({ onOpenUpload, onOpenSettings }: SidebarProps) {
+export function Sidebar({ onOpenUpload, onOpenSettings, onOpenDocument }: SidebarProps) {
   const documentsTree = useAppStore((s) => s.documentsTree)
   const chats = useAppStore((s) => s.chats)
   const activeChatId = useAppStore((s) => s.activeChatId)
@@ -197,17 +198,23 @@ export function Sidebar({ onOpenUpload, onOpenSettings }: SidebarProps) {
               </button>
               {isOpen && (
                 <div className="pl-2.5">
-                  {folder.files.map((file) => (
-                    <button
-                      key={file.id}
-                      type="button"
-                      className="flex w-full items-center gap-[7px] rounded-[7px] px-2 py-1.5 text-left text-[12.5px]"
-                      style={{ color: 'var(--color-muted)' }}
-                    >
-                      <FileIcon />
-                      <span className="overflow-hidden text-ellipsis whitespace-nowrap">{file.name}</span>
-                    </button>
-                  ))}
+                  {folder.files.map((file) => {
+                    const isParsed = file.status === 'parsed'
+                    return (
+                      <button
+                        key={file.id}
+                        type="button"
+                        disabled={!isParsed}
+                        title={isParsed ? undefined : 'Файл ещё не распознан'}
+                        onClick={() => onOpenDocument(file.id)}
+                        className="flex w-full items-center gap-[7px] rounded-[7px] px-2 py-1.5 text-left text-[12.5px]"
+                        style={{ color: isParsed ? 'var(--color-muted)' : 'var(--color-faint)' }}
+                      >
+                        <FileIcon />
+                        <span className="overflow-hidden text-ellipsis whitespace-nowrap">{file.name}</span>
+                      </button>
+                    )
+                  })}
                 </div>
               )}
             </div>

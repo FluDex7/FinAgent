@@ -1,6 +1,7 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { ChatFeed } from './components/ChatFeed'
 import { Composer } from './components/Composer'
+import { DocumentViewer } from './components/DocumentViewer'
 import { EmptyState } from './components/EmptyState'
 import { Sidebar } from './components/Sidebar'
 import { Topbar } from './components/Topbar'
@@ -21,6 +22,7 @@ function App() {
   const messages = useAppStore((s) => s.messages)
   const error = useAppStore((s) => s.error)
   const clearError = useAppStore((s) => s.clearError)
+  const [openDocumentId, setOpenDocumentId] = useState<string | null>(null)
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
@@ -68,7 +70,7 @@ function App() {
           boxShadow: '0 30px 80px rgba(20,60,120,.32), inset 0 1px 0 rgba(255,255,255,.5)',
         }}
       >
-        <Sidebar onOpenUpload={() => {}} onOpenSettings={() => {}} />
+        <Sidebar onOpenUpload={() => {}} onOpenSettings={() => {}} onOpenDocument={setOpenDocumentId} />
 
         <main className="relative flex h-full min-w-0 flex-1 flex-col" style={{ background: 'var(--color-sheet)' }}>
           <Topbar onOpenSettings={() => {}} />
@@ -88,7 +90,11 @@ function App() {
             </div>
           )}
 
-          <Composer onOpenAt={() => {}} onOpenUpload={() => {}} />
+          <Composer onOpenUpload={() => {}} />
+
+          {openDocumentId && (
+            <DocumentViewer statementId={openDocumentId} onClose={() => setOpenDocumentId(null)} />
+          )}
         </main>
       </div>
     </div>
