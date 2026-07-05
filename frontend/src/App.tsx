@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { Sidebar } from './components/Sidebar'
 import { useAppStore } from './store/useAppStore'
 
 const CLOUDS = [
@@ -11,10 +12,19 @@ const CLOUDS = [
 function App() {
   const theme = useAppStore((s) => s.theme)
   const toggleTheme = useAppStore((s) => s.toggleTheme)
+  const loadDocuments = useAppStore((s) => s.loadDocuments)
+  const loadChats = useAppStore((s) => s.loadChats)
+  const loadHealth = useAppStore((s) => s.loadHealth)
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
   }, [theme])
+
+  useEffect(() => {
+    void loadDocuments()
+    void loadChats()
+    void loadHealth()
+  }, [loadDocuments, loadChats, loadHealth])
 
   return (
     <div
@@ -50,30 +60,7 @@ function App() {
           boxShadow: '0 30px 80px rgba(20,60,120,.32), inset 0 1px 0 rgba(255,255,255,.5)',
         }}
       >
-        <aside
-          className="flex h-full w-[284px] flex-shrink-0 flex-col border-r"
-          style={{ background: 'var(--color-panel)', borderColor: 'var(--color-border)' }}
-        >
-          <div className="flex items-center gap-2.5 px-4 pb-3 pt-4">
-            <div
-              className="flex h-[26px] w-[26px] flex-shrink-0 items-center justify-center rounded-lg"
-              style={{ background: 'var(--color-accent)' }}
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
-                <path d="M4 19V9M9 19V5M14 19v-7M19 19v-11" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" />
-              </svg>
-            </div>
-            <span className="text-[15px] font-bold tracking-tight" style={{ color: 'var(--color-ink)' }}>
-              FinAgent
-            </span>
-            <span
-              className="ml-auto rounded-full border px-1.5 py-0.5 text-[10px] font-semibold"
-              style={{ color: 'var(--color-faint)', borderColor: 'var(--color-border)' }}
-            >
-              локально
-            </span>
-          </div>
-        </aside>
+        <Sidebar onOpenUpload={() => {}} onOpenSettings={() => {}} />
 
         <main className="relative flex h-full min-w-0 flex-1 flex-col" style={{ background: 'var(--color-sheet)' }}>
           <header

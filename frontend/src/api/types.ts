@@ -95,6 +95,24 @@ export interface MessageOut {
   createdAt: string
 }
 
+export interface ServiceStatus {
+  ok: boolean
+  detail: string
+}
+
+export interface LlmStatus extends ServiceStatus {
+  provider: 'openai' | 'ollama'
+  model: string
+}
+
+export interface HealthResponse {
+  llm: LlmStatus
+  postgres: ServiceStatus
+  qdrant: ServiceStatus
+  tesseract: ServiceStatus
+  statementsDir: ServiceStatus
+}
+
 export type ChatSseEvent =
   | { event: 'chat'; data: { chatId: string } }
   | { event: 'scope'; data: { files: string[]; auto: boolean } }

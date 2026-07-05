@@ -1,7 +1,16 @@
 import { create } from 'zustand'
 import { deleteChat, getMessages, listChats, renameChat, streamChat } from '../api/agent'
+import { getHealth } from '../api/health'
 import { getDocumentsTree } from '../api/statements'
-import type { BlockOut, ChatSummary, DocFolderOut, MessageOut, Ref, ToolCallOut } from '../api/types'
+import type {
+  BlockOut,
+  ChatSummary,
+  DocFolderOut,
+  HealthResponse,
+  MessageOut,
+  Ref,
+  ToolCallOut,
+} from '../api/types'
 
 type Theme = 'light' | 'dark'
 
@@ -19,6 +28,9 @@ interface AppStore {
   documentsTree: DocFolderOut[]
   documentsLoading: boolean
   loadDocuments: () => Promise<void>
+
+  health: HealthResponse | null
+  loadHealth: () => Promise<void>
 
   chats: ChatSummary[]
   chatsLoading: boolean
@@ -61,6 +73,16 @@ export const useAppStore = create<AppStore>((set, get) => ({
       set({ error: (err as Error).message })
     } finally {
       set({ documentsLoading: false })
+    }
+  },
+
+  health: null,
+  loadHealth: async () => {
+    try {
+      const health = await getHealth()
+      set({ health })
+    } catch (err) {
+      set({ error: (err as Error).message })
     }
   },
 
