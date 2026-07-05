@@ -1,0 +1,118 @@
+import pytest
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+from app.core.config import Settings, get_settings
+from app.core.exceptions import PathTraversalError, StatementNotFoundError
+from app.modules.statements.service import StatementsService
+
+CSV_CONTENT = (
+    b"date,amount,description\n"
+    b"2025-01-14,-540.00,PYATEROCHKA 5443\n"
+    b"2025-01-15,-1200.50,YANDEX.TAXI\n"
+)
+
+
+@pytest.fixture
+async def session():
+    # A dedicated engine per test avoids asyncpg connections bound to a
+    # previous test's (now closed) event loop.
+    test_engine = create_async_engine(get_settings().database_url)
+    async with test_engine.connect() as conn:
+        trans = await conn.begin()
+        maker = async_sessionmaker(bind=conn, expire_on_commit=False)
+        session = maker()
+        yield session
+        await session.close()
+        await trans.rollback()
+    await test_engine.dispose()
+
+
+@pytest.fixture
+def statements_dir(tmp_path):
+    return tmp_path
+
+
+@pytest.fixture
+def service(session: AsyncSession, statements_dir) -> StatementsService:
+    settings = Settings(statements_dir=str(statements_dir))
+    return StatementsService(session, settings)
+
+
+async def test_browse_tree_empty(service: StatementsService):
+    assert await service.browse_tree() == []
+
+
+async def test_upload_csv_creates_parsed_statement_and_transactions(service: StatementsService):
+    statement = await service.upload(filename="q1.csv", folder="2025", content=CSV_CONTENT)
+
+    assert statement.status.value == "parsed"
+    assert statement.transaction_count == 2
+    assert statement.date_from is not None
+    assert statement.date_to is not None
+    assert statement.date_from.isoformat() == "2025-01-14"
+    assert statement.date_to.isoformat() == "2025-01-15"
+
+    transactions = await service.list_transactions(statement.id)
+    assert len(transactions) == 2
+
+
+async def test_upload_bad_csv_marks_error_but_keeps_statement(service: StatementsService):
+    statement = await service.upload(
+        filename="bad.csv", folder="2025", content=b"not,a,valid\nfile"
+    )
+    assert statement.status.value == "error"
+    assert statement.error_message
+
+
+async def test_upload_unsupported_extension_raises(service: StatementsService):
+    from app.core.exceptions import StatementParseError
+
+    with pytest.raises(StatementParseError):
+        await service.upload(filename="statement.txt", folder="2025", content=b"hello")
+
+
+async def test_browse_tree_reflects_disk_and_db_status(service: StatementsService):
+    await service.upload(filename="q1.csv", folder="2025", content=CSV_CONTENT)
+    (service.root / "2025" / "not_yet_parsed.csv").write_bytes(CSV_CONTENT)
+
+    tree = await service.browse_tree()
+    assert len(tree) == 1
+    folder = tree[0]
+    assert folder.name == "2025"
+    names_status = {f.name: f.status.value for f in folder.files}
+    assert names_status["q1"] == "parsed"
+    assert names_status["not_yet_parsed"] == "new"
+
+
+async def test_browse_tree_with_path_returns_single_folder(service: StatementsService):
+    await service.upload(filename="q1.csv", folder="2025", content=CSV_CONTENT)
+    await service.upload(filename="q2.csv", folder="2024", content=CSV_CONTENT)
+
+    tree = await service.browse_tree("2025")
+    assert len(tree) == 1
+    assert tree[0].name == "2025"
+    assert [f.name for f in tree[0].files] == ["q1"]
+
+
+async def test_browse_tree_path_traversal_rejected(service: StatementsService):
+    with pytest.raises(PathTraversalError):
+        await service.browse_tree("../../etc")
+
+
+async def test_get_statement_not_found_raises(service: StatementsService):
+    import uuid
+
+    with pytest.raises(StatementNotFoundError):
+        await service.get(uuid.uuid4())
+
+
+async def test_delete_removes_file_and_db_row(service: StatementsService):
+    statement = await service.upload(filename="q1.csv", folder="2025", content=CSV_CONTENT)
+    file_path = service.root / "2025" / "q1.csv"
+    assert file_path.exists()
+
+    await service.delete(statement.id)
+
+    assert not file_path.exists()
+    with pytest.raises(StatementNotFoundError):
+        await service.get(statement.id)

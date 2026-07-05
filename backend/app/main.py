@@ -1,12 +1,15 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
-from pydantic import BaseModel, ConfigDict, Field
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 
 from app.core.config import get_settings
 from app.core.database import engine
+from app.core.exceptions import AppError
 from app.core.health import CheckResult, run_health_checks
 from app.core.logging import print_health_banner, setup_logging
+from app.core.schemas import CamelModel
+from app.modules.statements.router import router as statements_router
 
 settings = get_settings()
 setup_logging(settings.log_level)
@@ -20,28 +23,33 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="FinAgent", lifespan=lifespan)
+app.include_router(statements_router)
 
 
-class ServiceStatus(BaseModel):
+@app.exception_handler(AppError)
+async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
+    content = {"detail": exc.message, "hint": exc.hint}
+    return JSONResponse(status_code=exc.status_code, content=content)
+
+
+class ServiceStatus(CamelModel):
     ok: bool
     detail: str
 
 
-class LlmStatus(BaseModel):
+class LlmStatus(CamelModel):
     provider: str
     ok: bool
     model: str
     detail: str
 
 
-class HealthResponse(BaseModel):
-    model_config = ConfigDict(populate_by_name=True)
-
+class HealthResponse(CamelModel):
     llm: LlmStatus
     postgres: ServiceStatus
     qdrant: ServiceStatus
     tesseract: ServiceStatus
-    statements_dir: ServiceStatus = Field(serialization_alias="statementsDir")
+    statements_dir: ServiceStatus
 
 
 def _find(results: list[CheckResult], name: str) -> CheckResult:

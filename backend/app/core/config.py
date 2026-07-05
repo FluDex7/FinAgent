@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     ollama_host: str = "http://localhost:11434"
     ollama_model: str = "mistral"
 
-    statements_dir: str = "./data/statements"
+    statements_dir: str = "./data"
 
 
 @lru_cache
