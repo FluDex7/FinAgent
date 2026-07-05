@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from app.core.config import get_settings
 from app.core.database import Base
+from app.modules.agent import models as agent_models  # noqa: F401
 from app.modules.statements import models as statements_models  # noqa: F401
 from app.modules.transactions import models as transactions_models  # noqa: F401
 
