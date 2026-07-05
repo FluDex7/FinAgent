@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAppStore } from '../store/useAppStore'
+import { ConfirmDialog } from './ConfirmDialog'
 
 interface SidebarProps {
   onOpenUpload: () => void
@@ -107,6 +108,7 @@ export function Sidebar({ onOpenUpload, onOpenSettings, onOpenDocument }: Sideba
   const [openFolders, setOpenFolders] = useState<Record<string, boolean>>({})
   const [editingChatId, setEditingChatId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null)
 
   const toggleFolder = (name: string) => {
     setOpenFolders((prev) => ({ ...prev, [name]: !prev[name] }))
@@ -288,7 +290,7 @@ export function Sidebar({ onOpenUpload, onOpenSettings, onOpenDocument }: Sideba
                   <button
                     type="button"
                     title="Удалить"
-                    onClick={() => deleteChatAction(chat.id)}
+                    onClick={() => setPendingDelete({ id: chat.id, title: chat.title })}
                     className="flex h-[26px] w-[26px] flex-shrink-0 items-center justify-center rounded-md"
                     style={{ color: 'var(--color-faint)' }}
                   >
@@ -321,6 +323,18 @@ export function Sidebar({ onOpenUpload, onOpenSettings, onOpenDocument }: Sideba
           <SettingsIcon />
         </button>
       </div>
+
+      {pendingDelete && (
+        <ConfirmDialog
+          title="Удалить чат?"
+          message={`Чат «${pendingDelete.title}» и его история будут удалены без возможности восстановления.`}
+          onCancel={() => setPendingDelete(null)}
+          onConfirm={() => {
+            deleteChatAction(pendingDelete.id)
+            setPendingDelete(null)
+          }}
+        />
+      )}
     </aside>
   )
 }

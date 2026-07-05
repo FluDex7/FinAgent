@@ -3,6 +3,8 @@ import { ChatFeed } from './components/ChatFeed'
 import { Composer } from './components/Composer'
 import { DocumentViewer } from './components/DocumentViewer'
 import { EmptyState } from './components/EmptyState'
+import { SettingsModal } from './components/modals/SettingsModal'
+import { UploadModal } from './components/modals/UploadModal'
 import { Sidebar } from './components/Sidebar'
 import { Topbar } from './components/Topbar'
 import { useAppStore } from './store/useAppStore'
@@ -23,6 +25,8 @@ function App() {
   const error = useAppStore((s) => s.error)
   const clearError = useAppStore((s) => s.clearError)
   const [openDocumentId, setOpenDocumentId] = useState<string | null>(null)
+  const [uploadOpen, setUploadOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
@@ -70,14 +74,14 @@ function App() {
           boxShadow: '0 30px 80px rgba(20,60,120,.32), inset 0 1px 0 rgba(255,255,255,.5)',
         }}
       >
-        <Sidebar onOpenUpload={() => {}} onOpenSettings={() => {}} onOpenDocument={setOpenDocumentId} />
+        <Sidebar onOpenUpload={() => setUploadOpen(true)} onOpenSettings={() => setSettingsOpen(true)} onOpenDocument={setOpenDocumentId} />
 
         <main className="relative flex h-full min-w-0 flex-1 flex-col" style={{ background: 'var(--color-sheet)' }}>
-          <Topbar onOpenSettings={() => {}} />
+          <Topbar onOpenSettings={() => setSettingsOpen(true)} />
 
           <div className="flex-1 overflow-y-auto">
             <div className="mx-auto max-w-[760px] px-6 pb-8 pt-6">
-              {isEmpty ? <EmptyState onOpenUpload={() => {}} /> : <ChatFeed />}
+              {isEmpty ? <EmptyState onOpenUpload={() => setUploadOpen(true)} /> : <ChatFeed />}
             </div>
           </div>
 
@@ -90,13 +94,16 @@ function App() {
             </div>
           )}
 
-          <Composer onOpenUpload={() => {}} />
+          <Composer onOpenUpload={() => setUploadOpen(true)} />
 
           {openDocumentId && (
             <DocumentViewer statementId={openDocumentId} onClose={() => setOpenDocumentId(null)} />
           )}
         </main>
       </div>
+
+      {uploadOpen && <UploadModal onClose={() => setUploadOpen(false)} />}
+      {settingsOpen && <SettingsModal onClose={() => setSettingsOpen(false)} />}
     </div>
   )
 }

@@ -24,6 +24,7 @@ export interface StreamingMessage {
 interface AppStore {
   theme: Theme
   toggleTheme: () => void
+  setTheme: (theme: Theme) => void
 
   documentsTree: DocFolderOut[]
   documentsLoading: boolean
@@ -79,6 +80,11 @@ export const useAppStore = create<AppStore>((set, get) => ({
   theme: readStoredTheme(),
   toggleTheme: () => {
     const next: Theme = get().theme === 'light' ? 'dark' : 'light'
+    localStorage.setItem('fa-theme', next)
+    document.documentElement.setAttribute('data-theme', next)
+    set({ theme: next })
+  },
+  setTheme: (next: Theme) => {
     localStorage.setItem('fa-theme', next)
     document.documentElement.setAttribute('data-theme', next)
     set({ theme: next })
