@@ -28,5 +28,8 @@ backend/mlflow.db
 mlartifacts/
 backend/mlartifacts/
 
+# Backups produced by scripts/backup.sh
+finagent-backup-*.tar.gz
+
 # OS
 .DS_Store
