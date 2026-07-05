@@ -68,7 +68,7 @@ async def test_stream_chat_runs_tool_and_emits_block(monkeypatch, agent_service)
 
     monkeypatch.setattr(
         "app.modules.agent.registry.build_tools",
-        lambda transactions_service, chat_model: [real_plot_chart],
+        lambda transactions_service, chat_model, settings: [real_plot_chart],
     )
 
     events = [e async for e in agent_service.stream_chat(None, "покажи график", [])]
