@@ -143,3 +143,46 @@ async def test_resolve_paths_skips_unparsed_files(service: StatementsService):
     ids = await service.resolve_paths_to_statement_ids(["2025"])
 
     assert ids == []
+
+
+async def test_read_raw_text_returns_csv_content(service: StatementsService):
+    await service.upload(filename="q1.csv", folder="2025", content=CSV_CONTENT)
+
+    text = await service.read_raw_text("2025/q1")
+
+    assert "PYATEROCHKA" in text
+
+
+async def test_read_raw_text_root_level_file(service: StatementsService):
+    (service.root / "апрель.csv").write_bytes(CSV_CONTENT)
+
+    text = await service.read_raw_text("апрель")
+
+    assert "YANDEX.TAXI" in text
+
+
+async def test_read_raw_text_unknown_file_raises(service: StatementsService):
+    with pytest.raises(StatementNotFoundError):
+        await service.read_raw_text("2025/nonexistent")
+
+
+async def test_read_raw_text_unsupported_extension_raises(service: StatementsService):
+    (service.root / "notes.txt").write_bytes(b"hello")
+
+    from app.core.exceptions import StatementParseError
+
+    with pytest.raises(StatementParseError):
+        await service.read_raw_text("notes")
+
+
+async def test_read_raw_text_pdf_via_native_extraction(service: StatementsService):
+    from pathlib import Path
+
+    fixture = (
+        Path(__file__).parent / "fixtures" / "pdf_samples" / "tbank_funds_movement.pdf"
+    )
+    (service.root / "tbank.pdf").write_bytes(fixture.read_bytes())
+
+    text = await service.read_raw_text("tbank")
+
+    assert "ТБАНК" in text.upper()

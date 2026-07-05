@@ -185,10 +185,16 @@ def _detect_format(text: str) -> str:
     return "unknown"
 
 
-def parse_pdf(content: bytes) -> list[TransactionIn]:
+def extract_text(content: bytes) -> str:
+    """Native extraction first, OCR only if the PDF has ~no embedded text (a scan)."""
     text = _extract_native_text(content)
     if len(text.strip()) < _MIN_NATIVE_TEXT_LENGTH:
         text = _extract_ocr_text(content)
+    return text
+
+
+def parse_pdf(content: bytes) -> list[TransactionIn]:
+    text = extract_text(content)
 
     if not text.strip():
         raise StatementParseError(

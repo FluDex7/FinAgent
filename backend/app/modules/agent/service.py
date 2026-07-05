@@ -148,7 +148,7 @@ class AgentService:
                     "sql_query."
                 )
 
-            tools = build_tools(self.transactions, chat_model, self.settings)
+            tools = build_tools(self.transactions, self.statements, chat_model, self.settings)
             graph = build_agent_graph(chat_model, tools, system_prompt=system_prompt)
 
             inputs = {"messages": [*history, HumanMessage(content=message)]}

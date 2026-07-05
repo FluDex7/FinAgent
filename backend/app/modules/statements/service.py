@@ -9,7 +9,7 @@ from app.core.exceptions import PathTraversalError, StatementNotFoundError, Stat
 from app.modules.categorization.service import CategorizationService
 from app.modules.statements.models import Statement, StatementFormat, StatementStatus
 from app.modules.statements.parsers.csv_parser import parse_csv
-from app.modules.statements.parsers.pdf_parser import parse_pdf
+from app.modules.statements.parsers.pdf_parser import extract_text, parse_pdf
 from app.modules.statements.repository import StatementRepository
 from app.modules.statements.schemas import DocFileOut, DocFolderOut, StatementOut
 from app.modules.transactions.schemas import TransactionIn, TransactionOut
@@ -158,6 +158,37 @@ class StatementsService:
         if file_path.exists():
             file_path.unlink()
         await self.repo.delete(statement)
+
+    def _locate_file(self, path: str) -> Path:
+        """Resolves a tree path ("2025/апрель" or a bare root-level "апрель") to the
+        matching file on disk, regardless of its extension."""
+        folder_name, _, file_name = path.strip("/").rpartition("/")
+        target_dir = self._resolve_dir(folder_name)
+        if not target_dir.exists():
+            raise StatementNotFoundError(f"Папка «{folder_name}» не найдена.")
+        match = next(
+            (p for p in target_dir.iterdir() if p.is_file() and p.stem == file_name), None
+        )
+        if match is None:
+            raise StatementNotFoundError(f"Файл «{path}» не найден на диске.")
+        return match
+
+    async def read_raw_text(self, path: str) -> str:
+        """Reads a file's raw text content directly from disk — no transaction parsing.
+
+        For files the structured pipeline can't handle (unrecognized PDF layout, a
+        parse error, or just a format we don't model) this lets the agent still look
+        at what's actually in the file instead of being stuck.
+        """
+        file_path = self._locate_file(path)
+        content = file_path.read_bytes()
+        ext = file_path.suffix.lower().lstrip(".")
+
+        if ext == "csv":
+            return content.decode("utf-8-sig", errors="ignore")
+        if ext == "pdf":
+            return extract_text(content)
+        raise StatementParseError(f"Чтение файлов формата «.{ext}» не поддерживается.")
 
     async def resolve_paths_to_statement_ids(self, paths: list[str]) -> list[str]:
         """Maps resolve_scope/@-ref paths ("2025" a whole folder, "2025/Q1" one file)
