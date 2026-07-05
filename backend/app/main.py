@@ -10,6 +10,7 @@ from app.core.health import CheckResult, run_health_checks
 from app.core.logging import print_health_banner, setup_logging
 from app.core.schemas import CamelModel
 from app.modules.agent.router import router as agent_router
+from app.modules.categorization.router import router as categorization_router
 from app.modules.statements.router import router as statements_router
 
 settings = get_settings()
@@ -26,6 +27,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="FinAgent", lifespan=lifespan)
 app.include_router(statements_router)
 app.include_router(agent_router)
+app.include_router(categorization_router)
 
 
 @app.exception_handler(AppError)

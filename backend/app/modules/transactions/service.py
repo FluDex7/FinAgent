@@ -3,9 +3,10 @@ from decimal import Decimal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.exceptions import CategoryNotFoundError, MerchantNotFoundError
 from app.modules.transactions.models import MerchantSource
 from app.modules.transactions.repository import TransactionRepository
-from app.modules.transactions.schemas import CategoryOut, TransactionIn, TransactionOut
+from app.modules.transactions.schemas import CategoryOut, MerchantOut, TransactionIn, TransactionOut
 
 
 class TransactionsService:
@@ -60,3 +61,28 @@ class TransactionsService:
         self, statement_ids: list[uuid.UUID], *, expenses_only: bool = False
     ) -> dict[uuid.UUID | None, Decimal]:
         return await self.repo.sum_by_category(statement_ids, expenses_only=expenses_only)
+
+    async def list_merchants(self, *, needs_review: bool = False) -> list[MerchantOut]:
+        rows = await self.repo.list_merchants(needs_review=needs_review)
+        return [MerchantOut.model_validate(r) for r in rows]
+
+    async def recategorize_merchant(
+        self, merchant_id: uuid.UUID, category_id: uuid.UUID
+    ) -> MerchantOut:
+        merchant = await self.repo.get_merchant_by_id(merchant_id)
+        if merchant is None:
+            raise MerchantNotFoundError(f"Продавец {merchant_id} не найден.")
+        category = await self.repo.get_category(category_id)
+        if category is None:
+            raise CategoryNotFoundError(f"Категория {category_id} не найдена.")
+        await self.repo.recategorize_merchant(merchant, category_id)
+        return MerchantOut.model_validate(merchant)
+
+    async def update_category(
+        self, category_id: uuid.UUID, *, name: str | None = None, color: str | None = None
+    ) -> CategoryOut:
+        category = await self.repo.get_category(category_id)
+        if category is None:
+            raise CategoryNotFoundError(f"Категория {category_id} не найдена.")
+        await self.repo.update_category(category, name=name, color=color)
+        return CategoryOut.model_validate(category)

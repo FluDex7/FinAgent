@@ -23,3 +23,11 @@ class StatementNotFoundError(AppError):
 
 class SqlValidationError(AppError):
     pass
+
+
+class MerchantNotFoundError(AppError):
+    status_code = 404
+
+
+class CategoryNotFoundError(AppError):
+    status_code = 404

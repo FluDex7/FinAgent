@@ -1,7 +1,7 @@
 import uuid
 from decimal import Decimal
 
-from sqlalchemy import ColumnElement, func, select, text
+from sqlalchemy import ColumnElement, func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.transactions.models import Category, Merchant, MerchantSource, Transaction
@@ -116,3 +116,37 @@ class TransactionRepository:
         )
         result = await self.session.execute(stmt)
         return dict(result.all())
+
+    async def list_merchants(self, *, needs_review: bool = False) -> list[Merchant]:
+        stmt = select(Merchant).order_by(Merchant.normalized_key)
+        if needs_review:
+            stmt = stmt.where(Merchant.source == MerchantSource.llm)
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def get_merchant_by_id(self, merchant_id: uuid.UUID) -> Merchant | None:
+        return await self.session.get(Merchant, merchant_id)
+
+    async def recategorize_merchant(
+        self, merchant: Merchant, category_id: uuid.UUID
+    ) -> None:
+        merchant.category_id = category_id
+        merchant.source = MerchantSource.user
+        await self.session.execute(
+            update(Transaction)
+            .where(Transaction.merchant_id == merchant.id)
+            .values(category_id=category_id)
+        )
+        await self.session.flush()
+
+    async def update_category(
+        self, category: Category, *, name: str | None, color: str | None
+    ) -> None:
+        if name is not None:
+            category.name = name
+        if color is not None:
+            category.color = color
+        await self.session.flush()
+
+    async def get_category(self, category_id: uuid.UUID) -> Category | None:
+        return await self.session.get(Category, category_id)
