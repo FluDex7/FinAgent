@@ -56,3 +56,7 @@ class StatementRepository:
     async def delete(self, statement: Statement) -> None:
         await self.session.delete(statement)
         await self.session.flush()
+
+    async def rename(self, statement: Statement, filename: str) -> None:
+        statement.filename = filename
+        await self.session.flush()

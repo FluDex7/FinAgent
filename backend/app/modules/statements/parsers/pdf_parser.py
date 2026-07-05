@@ -193,6 +193,14 @@ def extract_text(content: bytes) -> str:
     return text
 
 
+def detect_bank_label(content: bytes) -> str | None:
+    """Best-effort bank slug for auto-naming a successfully parsed file — None for a
+    format parse_pdf would reject anyway (caller should only use this after a
+    successful parse)."""
+    fmt = _detect_format(extract_text(content))
+    return fmt if fmt != "unknown" else None
+
+
 def parse_pdf(content: bytes) -> list[TransactionIn]:
     text = extract_text(content)
 

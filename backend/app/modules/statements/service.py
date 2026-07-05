@@ -1,5 +1,6 @@
 import uuid
 from collections.abc import Callable
+from datetime import date
 from pathlib import Path
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,13 +10,30 @@ from app.core.exceptions import PathTraversalError, StatementNotFoundError, Stat
 from app.modules.categorization.service import CategorizationService
 from app.modules.statements.models import Statement, StatementFormat, StatementStatus
 from app.modules.statements.parsers.csv_parser import parse_csv
-from app.modules.statements.parsers.pdf_parser import extract_text, parse_pdf
+from app.modules.statements.parsers.pdf_parser import detect_bank_label, extract_text, parse_pdf
 from app.modules.statements.repository import StatementRepository
 from app.modules.statements.schemas import DocFileOut, DocFolderOut, StatementOut
 from app.modules.transactions.schemas import TransactionIn, TransactionOut
 from app.modules.transactions.service import TransactionsService
 
 _SUPPORTED_EXTENSIONS = {"csv": StatementFormat.csv, "pdf": StatementFormat.pdf}
+_BANK_LABELS = {"tbank": "тбанк", "sberbank": "сбербанк"}
+
+
+def _format_period(date_from: date, date_to: date) -> str:
+    if (date_from.year, date_from.month) == (date_to.year, date_to.month):
+        return f"{date_from:%Y-%m}"
+    return f"{date_from:%Y-%m-%d}_{date_to:%Y-%m-%d}"
+
+
+def _unique_filename(directory: Path, base_name: str, ext: str) -> str:
+    candidate = f"{base_name}.{ext}"
+    if not (directory / candidate).exists():
+        return candidate
+    n = 2
+    while (directory / f"{base_name}-{n}.{ext}").exists():
+        n += 1
+    return f"{base_name}-{n}.{ext}"
 
 
 class StatementsService:
@@ -129,12 +147,31 @@ class StatementsService:
         rows = await self.transactions.bulk_create(statement.id, transactions)
         await self.categorization.categorize_transactions(rows)
         dates = [t.date for t in transactions]
+        date_from, date_to = min(dates), max(dates)
         await self.repo.mark_parsed(
-            statement,
-            transaction_count=len(transactions),
-            date_from=min(dates),
-            date_to=max(dates),
+            statement, transaction_count=len(transactions), date_from=date_from, date_to=date_to
         )
+
+        if statement.source_format == StatementFormat.pdf:
+            await self._auto_rename(statement, content, date_from, date_to)
+
+    async def _auto_rename(
+        self, statement: Statement, content: bytes, date_from: date, date_to: date
+    ) -> None:
+        """Renames a parsed PDF to '<bank>_<period>.pdf' so the vault stays organized
+        without the user having to do it by hand. Best-effort — skipped if the bank
+        can't be identified or the name is already canonical."""
+        bank = detect_bank_label(content)
+        if bank is None:
+            return
+        label = _BANK_LABELS.get(bank, bank)
+        directory = self.root / statement.folder_path
+        base_name = f"{label}_{_format_period(date_from, date_to)}"
+        new_filename = _unique_filename(directory, base_name, "pdf")
+        if new_filename == statement.filename:
+            return
+        (directory / statement.filename).rename(directory / new_filename)
+        await self.repo.rename(statement, new_filename)
 
     async def _get_or_404(self, statement_id: uuid.UUID) -> Statement:
         statement = await self.repo.get(statement_id)
