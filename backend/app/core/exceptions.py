@@ -19,3 +19,7 @@ class PathTraversalError(AppError):
 
 class StatementNotFoundError(AppError):
     status_code = 404
+
+
+class SqlValidationError(AppError):
+    pass

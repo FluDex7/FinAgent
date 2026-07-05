@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.transactions.models import Transaction
@@ -40,3 +40,11 @@ class TransactionRepository:
         )
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
+
+    async def execute_readonly_query(
+        self, sql: str, *, timeout_ms: int = 3000
+    ) -> list[dict]:
+        """Runs an already-validated (SELECT-only, whitelisted) SQL string for sql_query."""
+        await self.session.execute(text(f"SET LOCAL statement_timeout = {timeout_ms}"))
+        result = await self.session.execute(text(sql))
+        return [dict(row._mapping) for row in result.fetchall()]

@@ -21,3 +21,7 @@ class TransactionsService:
     ) -> list[TransactionOut]:
         rows = await self.repo.list_by_statement(statement_id, limit, offset)
         return [TransactionOut.model_validate(r) for r in rows]
+
+    async def run_validated_sql(self, sql: str) -> list[dict]:
+        """Executes SQL already checked by sql_validation — the sql_query tool's only DB gateway."""
+        return await self.repo.execute_readonly_query(sql)
