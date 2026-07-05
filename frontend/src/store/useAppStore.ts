@@ -40,6 +40,7 @@ interface AppStore {
   isStreaming: boolean
   streamingMessage: StreamingMessage | null
   error: string | null
+  clearError: () => void
 
   loadChats: () => Promise<void>
   newChat: () => void
@@ -47,10 +48,31 @@ interface AppStore {
   renameChat: (chatId: string, title: string) => Promise<void>
   deleteChat: (chatId: string) => Promise<void>
   sendMessage: (text: string, refs?: Ref[]) => Promise<void>
+  stopStreaming: () => void
 }
+
+let activeAbortController: AbortController | null = null
 
 function readStoredTheme(): Theme {
   return localStorage.getItem('fa-theme') === 'dark' ? 'dark' : 'light'
+}
+
+function materializeStreamingMessage(get: () => AppStore, set: (partial: Partial<AppStore>) => void): void {
+  const streaming = get().streamingMessage
+  if (!streaming || (!streaming.text && !streaming.tools.length && !streaming.blocks.length)) return
+
+  const message: MessageOut = {
+    id: `local-${Date.now()}`,
+    role: 'agent',
+    text: streaming.text,
+    refs: null,
+    scope: streaming.scope,
+    tools: streaming.tools.length ? streaming.tools : null,
+    blocks: streaming.blocks.length ? streaming.blocks : null,
+    suggestions: null,
+    createdAt: new Date().toISOString(),
+  }
+  set({ messages: [...get().messages, message] })
 }
 
 export const useAppStore = create<AppStore>((set, get) => ({
@@ -94,6 +116,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   isStreaming: false,
   streamingMessage: null,
   error: null,
+  clearError: () => set({ error: null }),
 
   loadChats: async () => {
     set({ chatsLoading: true })
@@ -159,8 +182,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
       error: null,
     })
 
+    activeAbortController = new AbortController()
+
     try {
-      for await (const evt of streamChat(get().activeChatId, text, refs)) {
+      for await (const evt of streamChat(get().activeChatId, text, refs, activeAbortController.signal)) {
         const streaming = get().streamingMessage
         if (!streaming) continue
 
@@ -207,16 +232,31 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
       const chatId = get().activeChatId
       if (chatId) {
-        const messages = await getMessages(chatId)
-        set({ messages })
-        if (wasNewChat) {
-          await get().loadChats()
+        try {
+          const messages = await getMessages(chatId)
+          set({ messages })
+          if (wasNewChat) {
+            await get().loadChats()
+          }
+        } catch {
+          // Stream completed fine; only the authoritative refresh failed.
+          // Keep the locally-accumulated response instead of losing it.
+          materializeStreamingMessage(get, set)
         }
       }
     } catch (err) {
-      set({ error: (err as Error).message })
+      if ((err as Error).name === 'AbortError') {
+        materializeStreamingMessage(get, set)
+      } else {
+        set({ error: (err as Error).message })
+      }
     } finally {
+      activeAbortController = null
       set({ isStreaming: false, streamingMessage: null })
     }
+  },
+
+  stopStreaming: () => {
+    activeAbortController?.abort()
   },
 }))

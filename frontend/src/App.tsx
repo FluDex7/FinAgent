@@ -1,4 +1,6 @@
 import { useEffect } from 'react'
+import { ChatFeed } from './components/ChatFeed'
+import { Composer } from './components/Composer'
 import { EmptyState } from './components/EmptyState'
 import { Sidebar } from './components/Sidebar'
 import { Topbar } from './components/Topbar'
@@ -17,6 +19,8 @@ function App() {
   const loadChats = useAppStore((s) => s.loadChats)
   const loadHealth = useAppStore((s) => s.loadHealth)
   const messages = useAppStore((s) => s.messages)
+  const error = useAppStore((s) => s.error)
+  const clearError = useAppStore((s) => s.clearError)
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
@@ -71,9 +75,20 @@ function App() {
 
           <div className="flex-1 overflow-y-auto">
             <div className="mx-auto max-w-[760px] px-6 pb-8 pt-6">
-              {isEmpty && <EmptyState onOpenUpload={() => {}} />}
+              {isEmpty ? <EmptyState onOpenUpload={() => {}} /> : <ChatFeed />}
             </div>
           </div>
+
+          {error && (
+            <div className="mx-6 mb-3 flex items-center gap-2 rounded-[10px] border px-3 py-2 text-[12.5px]" style={{ borderColor: 'var(--color-neg)', color: 'var(--color-neg)' }}>
+              <span className="flex-1">{error}</span>
+              <button type="button" onClick={clearError} className="font-semibold">
+                ✕
+              </button>
+            </div>
+          )}
+
+          <Composer onOpenAt={() => {}} onOpenUpload={() => {}} />
         </main>
       </div>
     </div>
