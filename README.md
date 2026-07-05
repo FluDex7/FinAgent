@@ -1,128 +1,83 @@
+<div align="center">
+
 # FinAgent
 
-**Локальный AI-агент для анализа банковских выписок.** Загружаете PDF/CSV — задаёте вопросы обычным языком: «на что я трачу больше всего», «сравни март и февраль», «найди подписки». Все данные и вычисления остаются на вашей машине.
+**A local-first AI agent for your bank statements.**
+
+Upload a PDF or CSV, then ask questions in plain language — *"what am I spending the most on"*, *"compare March and February"*, *"find recurring subscriptions"*. Everything runs, and stays, on your own machine.
+
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+![Python](https://img.shields.io/badge/python-3.11+-3776AB?logo=python&logoColor=white)
+![TypeScript](https://img.shields.io/badge/typescript-5-3178C6?logo=typescript&logoColor=white)
+![Docker](https://img.shields.io/badge/docker-compose-2496ED?logo=docker&logoColor=white)
+
+</div>
 
 <p align="center">
-  <img src="docs/screenshots/chat-light.png" width="49%" alt="FinAgent — светлая тема" />
-  <img src="docs/screenshots/chat-dark.png" width="49%" alt="FinAgent — тёмная тема" />
+  <img src="docs/screenshots/chat-light.png" width="49%" alt="FinAgent — light theme" />
+  <img src="docs/screenshots/chat-dark.png" width="49%" alt="FinAgent — dark theme" />
 </p>
 
-## Возможности
+## Features
 
-- **Загрузка выписок** — CSV и PDF (родное извлечение текста через PyMuPDF, с фолбэком на OCR через Tesseract для сканов), автоматическое определение банка и переименование файлов в формат `банк_период`.
-- **Чат на естественном языке** поверх своих данных, со стримингом ответа (SSE) и прозрачным логом вызовов инструментов агента.
-- **Text-to-SQL** — агент сам генерирует и выполняет read-only SQL-запросы к вашим транзакциям (whitelist таблиц, принудительный `LIMIT`, только `SELECT`, валидация через `sqlglot`).
-- **Графики прямо в чате** — метрики, donut/bar/line-диаграммы, таблицы.
-- **Автокатегоризация трат** — по правилам (~60 паттернов из коробки) с фолбэком на LLM и кэшированием по продавцу; отдельный экран «Требуют категории» для ручной разметки того, что агент не смог определить уверенно.
-- **@-упоминания** — сослаться на конкретный файл или папку в вопросе («сколько я потратил в @2025-01/tinkoff»), агент также сам определяет область поиска по смыслу вопроса, если вы её не указали.
-- **RAG по базе знаний** о форматах банков и правилах категоризации (LlamaIndex + Qdrant).
-- **Чтение любых файлов**, которые не удалось распарсить — агент открывает их как обычный текст.
-- **MLflow-трассировка** каждого вызова графа агента (модель → инструмент → модель → …) — полностью локально, без внешнего сервиса.
-- Светлая/тёмная тема, ни одного байта телеметрии.
+- **Statement ingestion** — CSV and PDF (native text extraction via PyMuPDF, OCR fallback via Tesseract for scans), automatic bank detection and file renaming.
+- **Natural-language chat** over your own data, streamed live over SSE, with a transparent log of every tool call the agent makes.
+- **Text-to-SQL** — the agent writes and runs its own read-only SQL against your transactions (table whitelist, forced `LIMIT`, `SELECT`-only, validated with `sqlglot`).
+- **Charts in the chat** — metrics, donut/bar/line charts, tables.
+- **Auto-categorization** — ~60 built-in merchant rules, LLM fallback with per-merchant caching, and a review screen for anything it isn't confident about.
+- **@-mentions** — point a question at a specific file or folder, or let the agent infer scope from the question itself.
+- **RAG knowledge base** about bank statement formats and categorization rules (LlamaIndex + Qdrant).
+- **MLflow tracing** of every agent run — fully local, no external service.
+- Light/dark theme. Zero telemetry.
 
-## Архитектура
+## Quick Start
 
-Разделение ролей между AI-библиотеками — осознанное и жёсткое:
-
-| Библиотека | Роль |
-|---|---|
-| **LangGraph** | Только оркестрация — граф «модель ↔ инструменты» для одного чат-хода |
-| **LangChain** | Обёртки над LLM (`ChatOpenAI` / `ChatOllama`) и определения инструментов (`@tool`, `StructuredTool`) |
-| **LlamaIndex + Qdrant** | Только retrieval для RAG, никогда — оркестрация |
-
-Бэкенд — по фичам (feature-based modules), а не по слоям: каждый модуль в `app/modules/*` владеет своими `router.py` / `service.py` / `repository.py` / `schemas.py` / `models.py` и никогда не трогает таблицы другого модуля напрямую — только через его сервис.
-
-```
-backend/app/
-├── core/            конфиг, БД (unit-of-work), health-check, MLflow, общие Pydantic-схемы (CamelModel)
-├── shared/           фабрика LLM/эмбеддингов (openai | ollama)
-└── modules/
-    ├── statements/    загрузка, парсинг CSV/PDF+OCR, дерево документов
-    ├── transactions/  транзакции, категории, продавцы
-    ├── categorization/правила + LLM-категоризация, эндпоинты ревью
-    ├── agent/         LangGraph-граф, SSE-стриминг, чаты и история
-    └── tools/         sql_query, plot_chart, compare_periods, resolve_scope, rag_lookup, read_document
-```
-
-Фронтенд: React + TypeScript, Zustand для состояния, Recharts для графиков (лениво подгружается — см. ниже), Tailwind v4 без `tailwind.config.js` (токены дизайна прямо в `index.css`).
-
-## Стек
-
-**Backend:** FastAPI (async) · SQLAlchemy 2.0 · Alembic · Pydantic v2 · PostgreSQL · LangChain / LangGraph · LlamaIndex · Qdrant · sqlglot · PyMuPDF + Tesseract OCR · MLflow · uv
-
-**Frontend:** React 19 · TypeScript · Vite · Tailwind CSS v4 · Zustand · Recharts
-
-## Быстрый старт (Docker)
-
-Нужен только Docker и Docker Compose.
+Requires Docker and Docker Compose.
 
 ```bash
-git clone <URL этого репозитория>
+git clone https://github.com/FluDex7/FinAgent.git
 cd FinAgent
-cp .env.example .env   # впишите OPENAI_API_KEY или переключитесь на Ollama — см. ниже
+cp .env.example .env   # set OPENAI_API_KEY, or switch to Ollama — see Configuration below
 docker compose up --build
 ```
 
-Дальше:
+- UI: http://localhost:3000
+- API: http://localhost:8000 (`/health` for an environment check)
 
-- UI — http://localhost:3000
-- API напрямую — http://localhost:8000 (и `/health` для проверки окружения)
+## Architecture
 
-Все данные (выписки, база, MLflow-трейсы) переживают перезапуск контейнеров — они смонтированы в volume'ы (`./data` на хосте для выписок).
+FinAgent draws a hard line between three AI libraries, on purpose:
 
-## Локальная разработка без Docker
+| Library | Role |
+|---|---|
+| **LangGraph** | Orchestration only — the model↔tools graph for a single chat turn |
+| **LangChain** | LLM wrappers (`ChatOpenAI` / `ChatOllama`) and tool definitions (`@tool`, `StructuredTool`) |
+| **LlamaIndex + Qdrant** | Retrieval only, for RAG — never orchestration |
 
-Нужны: Python 3.11+, [uv](https://docs.astral.sh/uv/), Node.js 20+, PostgreSQL, Tesseract OCR (`tesseract-ocr`, `tesseract-ocr-rus`).
+The backend is organized by feature, not by layer: each module under `app/modules/` owns its `router.py` / `service.py` / `repository.py` / `schemas.py` / `models.py`, and never touches another module's tables directly — only through that module's service.
 
-```bash
-# Postgres + Qdrant — проще всего поднять через Docker, даже если бэкенд/фронтенд гоняете локально
-docker compose up -d postgres qdrant
+## Tech Stack
 
-# Backend
-cd backend
-cp ../.env.example .env   # Settings ищет .env в текущей директории — здесь это backend/
-uv sync
-uv run alembic upgrade head
-uv run uvicorn app.main:app --reload
+**Backend** — FastAPI · SQLAlchemy 2.0 · Alembic · PostgreSQL · LangChain / LangGraph · LlamaIndex · Qdrant · sqlglot · PyMuPDF + Tesseract OCR · MLflow · [uv](https://docs.astral.sh/uv/)
 
-# Frontend (в отдельном терминале)
-cd frontend
-npm install
-npm run dev   # http://localhost:5173, Vite сам проксирует /api на localhost:8000
-```
+**Frontend** — React 19 · TypeScript · Vite · Tailwind CSS v4 · Zustand · Recharts
 
-### Тесты и линтеры
+## Configuration
 
-```bash
-# backend
-cd backend
-uv run pytest
-uv run ruff check .
-uv run mypy app/
+All variables live in [`.env.example`](.env.example).
 
-# frontend
-cd frontend
-npx tsc --noEmit
-npm run lint
-npm run build
-```
-
-## Конфигурация
-
-Все переменные — в `.env.example`. Ключевые:
-
-| Переменная | По умолчанию | Описание |
+| Variable | Default | Description |
 |---|---|---|
-| `DATABASE_URL` | `postgresql+asyncpg://finagent:finagent@localhost:5432/finagent` | Подключение к Postgres |
-| `QDRANT_URL` | `http://localhost:6333` | Подключение к Qdrant (RAG) |
-| `LLM_PROVIDER` | `openai` | `openai` или `ollama` |
-| `OPENAI_API_KEY` / `OPENAI_MODEL` | — / `gpt-4o-mini` | Нужны, если `LLM_PROVIDER=openai` |
-| `OLLAMA_HOST` / `OLLAMA_MODEL` | `http://localhost:11434` / `mistral` | Нужны, если `LLM_PROVIDER=ollama` — полностью офлайн-режим |
-| `STATEMENTS_DIR` | `./data` | Папка с загруженными выписками |
-| `MLFLOW_TRACKING_URI` | `sqlite:///./mlflow.db` | Локальное хранилище трейсов MLflow |
-| `MLFLOW_EXPERIMENT_NAME` | `finagent` | Имя эксперимента в MLflow |
+| `DATABASE_URL` | `postgresql+asyncpg://finagent:finagent@localhost:5432/finagent` | Postgres connection |
+| `QDRANT_URL` | `http://localhost:6333` | Qdrant connection (RAG) |
+| `LLM_PROVIDER` | `openai` | `openai` or `ollama` |
+| `OPENAI_API_KEY` / `OPENAI_MODEL` | — / `gpt-4o-mini` | Required if `LLM_PROVIDER=openai` |
+| `OLLAMA_HOST` / `OLLAMA_MODEL` | `http://localhost:11434` / `mistral` | Required if `LLM_PROVIDER=ollama` — fully offline |
+| `STATEMENTS_DIR` | `./data` | Where uploaded statements are stored |
+| `MLFLOW_TRACKING_URI` | `sqlite:///./mlflow.db` | Local MLflow tracking store |
+| `MLFLOW_EXPERIMENT_NAME` | `finagent` | MLflow experiment name |
 
-Переключиться на Ollama — значит не отправлять вообще ничего за пределы своей машины:
+Go fully offline with Ollama:
 
 ```env
 LLM_PROVIDER=ollama
@@ -130,66 +85,94 @@ OLLAMA_HOST=http://localhost:11434
 OLLAMA_MODEL=mistral
 ```
 
-(В Docker Compose бэкенд может достучаться до Ollama на хосте через `OLLAMA_HOST=http://host.docker.internal:11434` — это уже настроено в `docker-compose.yml`.)
+Under Docker Compose, `OLLAMA_HOST=http://host.docker.internal:11434` reaches an Ollama instance running on the host — already wired up in `docker-compose.yml`.
 
-## Трассировка вызовов агента (MLflow)
+## Local Development
 
-Каждый ход агента — вызовы модели, инструментов, условные переходы графа — трассируется автоматически (`mlflow.langchain.autolog()`), полностью локально, без сервера и телеметрии.
+Requires Python 3.11+, [uv](https://docs.astral.sh/uv/), Node.js 20+, PostgreSQL, and Tesseract OCR (`tesseract-ocr`, `tesseract-ocr-rus`).
+
+```bash
+# Postgres + Qdrant are easiest via Docker, even if you run backend/frontend locally
+docker compose up -d postgres qdrant
+
+# Backend
+cd backend
+cp ../.env.example .env   # Settings looks for .env in the current directory
+uv sync
+uv run alembic upgrade head
+uv run uvicorn app.main:app --reload
+
+# Frontend (separate terminal)
+cd frontend
+npm install
+npm run dev   # http://localhost:5173, proxies /api to localhost:8000
+```
+
+### Tests & Linting
+
+```bash
+cd backend && uv run pytest && uv run ruff check . && uv run mypy app/
+cd frontend && npx tsc --noEmit && npm run lint && npm run build
+```
+
+## MLflow Tracing
+
+Every agent turn — model calls, tool calls, graph branches — is traced automatically via `mlflow.langchain.autolog()`, fully locally, no telemetry.
 
 ```bash
 cd backend
 uv run mlflow ui --backend-store-uri sqlite:///./mlflow.db
 ```
 
-Откройте http://localhost:5000 — увидите дерево вызовов для каждого чата: `agent → chat model → tools → plot_chart → agent → …`.
+Open http://localhost:5000 to see the call tree for each chat turn: `agent → chat model → tools → plot_chart → agent → ...`.
 
-## Бэкап и перенос на другой компьютер
+## Backup & Restore
 
-Всё, что реально уникально для вас — это база Postgres (категории, правила категоризации продавцов, транзакции, история чатов) и папка `data/` с самими файлами выписок. RAG-индекс в Qdrant пересоздаётся из статичных файлов базы знаний автоматически при первом обращении — бэкапить его не нужно.
-
-На старом компьютере (нужен запущенный `postgres` из `docker-compose.yml`, даже если бэкенд вы гоняете не в докере):
+Your actual data lives in two places: the Postgres database (categories, merchant rules, transactions, chat history) and the `data/` folder (raw statement files). Qdrant's RAG index rebuilds itself from static knowledge files on first use — nothing to back up there.
 
 ```bash
+# On the old machine
 docker compose up -d postgres
 scripts/backup.sh
 # → finagent-backup-YYYYMMDD-HHMMSS.tar.gz
-```
 
-Перенесите архив на новый компьютер (флешка, облако, scp — как угодно) и там:
-
-```bash
+# Copy the archive over, then on the new machine:
 docker compose up -d postgres
 scripts/restore.sh finagent-backup-YYYYMMDD-HHMMSS.tar.gz
 ```
 
-Существующие данные в базе на новом компьютере будут заменены содержимым бэкапа.
-
-## Структура проекта
+## Project Structure
 
 ```
 FinAgent/
 ├── docker-compose.yml   postgres + qdrant + backend + frontend
 ├── scripts/             backup.sh / restore.sh
 ├── backend/
-│   ├── app/             см. «Архитектура» выше
-│   ├── migrations/      Alembic
+│   ├── app/
+│   │   ├── core/          config, DB (unit-of-work), health checks, MLflow, shared schemas
+│   │   ├── shared/        LLM/embedding provider factory
+│   │   └── modules/
+│   │       ├── statements/      upload, CSV/PDF+OCR parsing, document tree
+│   │       ├── transactions/    transactions, categories, merchants
+│   │       ├── categorization/  rules + LLM categorization, review endpoints
+│   │       ├── agent/           LangGraph graph, SSE streaming, chats
+│   │       └── tools/           sql_query, plot_chart, compare_periods, resolve_scope, rag_lookup, read_document
+│   ├── migrations/       Alembic
 │   └── Dockerfile
 └── frontend/
     ├── src/
-    │   ├── api/          типизированный клиент + SSE-парсер
-    │   ├── store/        Zustand
+    │   ├── api/           typed client + SSE parser
+    │   ├── store/         Zustand
     │   └── components/
-    │       ├── blocks/   metrics/donut/bars/line/table (recharts — лениво подгружаются)
-    │       └── modals/   upload / settings
-    └── Dockerfile        nginx, отдаёт статику и проксирует /api
+    │       ├── blocks/    metrics/donut/bars/line/table (recharts, lazy-loaded)
+    │       └── modals/    upload / settings
+    └── Dockerfile         nginx serving the build, proxying /api
 ```
 
-## Известные ограничения
+## Contributing
 
-- Провайдер LLM переключается только через `.env` + рестарт — нет runtime-переключения в UI (осознанно, т.к. бэкенд читает настройки один раз при старте).
-- Нет кнопки «удалить все данные» в настройках — под неё нет отдельного API. Для полной очистки: `docker compose down -v` (снесёт volume'ы Postgres/Qdrant/MLflow) плюс вручную удалить содержимое `data/` (это bind-mount на хосте, volume'ов не касается).
-- Раздел категоризации в настройках показывает только продавцов, которые реально требуют внимания (`source = llm`), а не полный редактируемый список всех правил.
+Issues and pull requests are welcome. Please run the tests and linters above before submitting.
 
-## Лицензия
+## License
 
 [MIT](LICENSE) © Romanov Danil
