@@ -65,6 +65,19 @@ async def test_run_sql_query_executes_generated_sql(transactions_service):
     assert float(outcome.rows[0]["total"]) == pytest.approx(-1740.50)
 
 
+async def test_run_sql_query_rejects_skip_response_with_clear_error(transactions_service):
+    # The SQL-generation prompt tells the sub-LLM to answer "SKIP" for questions it
+    # can't handle with one query (e.g. subscriptions) — that must surface as a clear
+    # tool error, not get passed through to validate_and_cap as garbage SQL.
+    fake_model = FakeListChatModel(responses=["SKIP"])
+    with pytest.raises(SqlValidationError):
+        await run_sql_query(
+            transactions_service=transactions_service,
+            chat_model=fake_model,
+            question="найди подписки",
+        )
+
+
 async def test_run_sql_query_rejects_unsafe_generated_sql(transactions_service):
     fake_model = FakeListChatModel(responses=["DROP TABLE transactions"])
     with pytest.raises(SqlValidationError):

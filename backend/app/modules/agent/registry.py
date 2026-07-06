@@ -4,6 +4,7 @@ from langchain_core.tools import BaseTool
 from app.core.config import Settings
 from app.modules.statements.service import StatementsService
 from app.modules.tools.compare_periods import build_compare_periods_tool
+from app.modules.tools.find_subscriptions import build_find_subscriptions_tool
 from app.modules.tools.plot_chart import plot_chart
 from app.modules.tools.rag_lookup import build_rag_lookup_tool
 from app.modules.tools.read_document import build_read_document_tool
@@ -21,6 +22,7 @@ def build_tools(
         build_sql_query_tool(transactions_service, chat_model),
         plot_chart,
         build_compare_periods_tool(transactions_service),
+        build_find_subscriptions_tool(transactions_service),
         build_rag_lookup_tool(settings),
         build_read_document_tool(statements_service),
     ]

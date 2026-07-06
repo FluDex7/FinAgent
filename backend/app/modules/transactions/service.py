@@ -97,3 +97,8 @@ class TransactionsService:
             raise CategoryNotFoundError(f"Категория {category_id} не найдена.")
         await self.repo.update_category(category, name=name, color=color)
         return CategoryOut.model_validate(category)
+
+    async def find_recurring_merchants(
+        self, statement_ids: list[uuid.UUID] | None = None
+    ) -> list[dict]:
+        return await self.repo.find_recurring_merchants(statement_ids=statement_ids)

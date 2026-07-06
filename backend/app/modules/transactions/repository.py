@@ -172,3 +172,52 @@ class TransactionRepository:
 
     async def get_category(self, category_id: uuid.UUID) -> Category | None:
         return await self.session.get(Category, category_id)
+
+    async def find_recurring_merchants(
+        self,
+        *,
+        statement_ids: list[uuid.UUID] | None = None,
+        min_months: int = 2,
+        amount_tolerance: float = 0.15,
+    ) -> list[dict]:
+        """Merchants charging a near-constant amount across multiple distinct months —
+        the actual signal for a subscription/recurring payment. Merchant names and
+        categories don't reliably say so (there's no "is a subscription" flag anywhere
+        in the schema), so this can't be answered by a one-shot generated SQL query —
+        it needs the GROUP BY/HAVING logic below every time.
+        """
+        merchant_label = func.coalesce(Merchant.display_name, Merchant.normalized_key)
+        abs_amount = func.abs(Transaction.amount)
+        month = func.date_trunc("month", Transaction.date)
+        distinct_months = func.count(func.distinct(month))
+        min_amount = func.min(abs_amount)
+        max_amount = func.max(abs_amount)
+        avg_amount = func.avg(abs_amount)
+
+        conditions: list[ColumnElement[bool]] = [
+            Transaction.amount < 0,
+            Transaction.merchant_id.isnot(None),
+        ]
+        if statement_ids:
+            conditions.append(Transaction.statement_id.in_(statement_ids))
+
+        stmt = (
+            select(
+                merchant_label.label("merchant"),
+                func.count(Transaction.id).label("occurrences"),
+                distinct_months.label("distinct_months"),
+                func.round(avg_amount, 2).label("avg_amount"),
+                func.round(min_amount, 2).label("min_amount"),
+                func.round(max_amount, 2).label("max_amount"),
+                func.max(Transaction.date).label("last_date"),
+            )
+            .select_from(Transaction)
+            .join(Merchant, Transaction.merchant_id == Merchant.id)
+            .where(*conditions)
+            .group_by(Merchant.id, merchant_label)
+            .having(distinct_months >= min_months)
+            .having(max_amount - min_amount <= avg_amount * amount_tolerance)
+            .order_by(distinct_months.desc(), avg_amount.desc())
+        )
+        result = await self.session.execute(stmt)
+        return [dict(row._mapping) for row in result.all()]
