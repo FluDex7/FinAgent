@@ -43,6 +43,7 @@ function App() {
   }, [loadDocuments, loadChats, loadHealth, loadMerchantsNeedingReview])
 
   const isEmpty = messages.length === 0
+  const overlayOpen = Boolean(openDocumentId) || reviewOpen
 
   return (
     <div
@@ -98,22 +99,31 @@ function App() {
         <main className="relative flex h-full min-w-0 flex-1 flex-col" style={{ background: 'transparent' }}>
           <Topbar onOpenSettings={() => setSettingsOpen(true)} />
 
-          <div className="flex-1 overflow-y-auto">
-            <div className="mx-auto max-w-[760px] px-6 pb-8 pt-6">
-              {isEmpty ? <EmptyState onOpenUpload={() => setUploadOpen(true)} /> : <ChatFeed />}
-            </div>
-          </div>
+          {/* Hidden (not just covered) while an overlay is open — the overlay's
+              glass background blurs whatever's behind it, and legible chat
+              controls bleeding through unblurred read as a rendering bug. With
+              nothing but the outer shell's decorative backdrop behind it, a low
+              opacity + blur reads as glass instead of broken. */}
+          {!overlayOpen && (
+            <>
+              <div className="flex-1 overflow-y-auto">
+                <div className="mx-auto max-w-[760px] px-6 pb-8 pt-6">
+                  {isEmpty ? <EmptyState onOpenUpload={() => setUploadOpen(true)} /> : <ChatFeed />}
+                </div>
+              </div>
 
-          {error && (
-            <div className="mx-6 mb-3 flex items-center gap-2 rounded-[10px] border px-3 py-2 text-[12.5px]" style={{ borderColor: 'var(--color-neg)', color: 'var(--color-neg)' }}>
-              <span className="flex-1">{error}</span>
-              <button type="button" onClick={clearError} className="font-semibold">
-                ✕
-              </button>
-            </div>
+              {error && (
+                <div className="mx-6 mb-3 flex items-center gap-2 rounded-[10px] border px-3 py-2 text-[12.5px]" style={{ borderColor: 'var(--color-neg)', color: 'var(--color-neg)' }}>
+                  <span className="flex-1">{error}</span>
+                  <button type="button" onClick={clearError} className="font-semibold">
+                    ✕
+                  </button>
+                </div>
+              )}
+
+              <Composer onOpenUpload={() => setUploadOpen(true)} />
+            </>
           )}
-
-          <Composer onOpenUpload={() => setUploadOpen(true)} />
 
           {openDocumentId && (
             <DocumentViewer statementId={openDocumentId} onClose={() => setOpenDocumentId(null)} />

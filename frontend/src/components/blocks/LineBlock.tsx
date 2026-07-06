@@ -1,4 +1,5 @@
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { normalizeMagnitude } from './normalizeMagnitude'
 
 interface LinePoint {
   label: string
@@ -33,7 +34,7 @@ function LineTooltip({ active, payload }: { active?: boolean; payload?: Array<{ 
 }
 
 export function LineBlock({ data, title }: { data: unknown; title?: string }) {
-  const points = Array.isArray(data) ? (data as LinePoint[]) : []
+  const points = normalizeMagnitude(Array.isArray(data) ? (data as LinePoint[]) : [])
   if (points.length === 0) return null
 
   return (

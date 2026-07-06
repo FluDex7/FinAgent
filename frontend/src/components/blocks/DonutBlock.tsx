@@ -1,4 +1,5 @@
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
+import { normalizeMagnitude } from './normalizeMagnitude'
 
 const PALETTE = [
   'var(--color-chart-1)',
@@ -35,7 +36,7 @@ function DonutTooltip({ active, payload }: { active?: boolean; payload?: Array<{
 }
 
 export function DonutBlock({ data, title }: { data: unknown; title?: string }) {
-  const points = Array.isArray(data) ? (data as DonutPoint[]) : []
+  const points = normalizeMagnitude(Array.isArray(data) ? (data as DonutPoint[]) : [])
   if (points.length === 0) return null
 
   const total = points.reduce((sum, p) => sum + p.value, 0)

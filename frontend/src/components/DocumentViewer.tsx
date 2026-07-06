@@ -81,7 +81,7 @@ export function DocumentViewer({ statementId, onClose }: DocumentViewerProps) {
   return (
     <div
       className="animate-fa-in absolute inset-0 z-30 flex flex-col"
-      style={{ background: 'var(--color-overlay)', backdropFilter: 'blur(30px) saturate(140%)' }}
+      style={{ background: 'var(--color-panel)', backdropFilter: 'blur(30px) saturate(140%)' }}
     >
       <header
         className="flex h-[54px] flex-shrink-0 items-center gap-3 border-b px-[18px]"
