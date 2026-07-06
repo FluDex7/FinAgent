@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent, KeyboardEvent } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import { AtPicker } from './AtPicker'
@@ -51,8 +51,19 @@ export function Composer({ onOpenUpload }: ComposerProps) {
   const isStreaming = useAppStore((s) => s.isStreaming)
   const sendMessage = useAppStore((s) => s.sendMessage)
   const stopStreaming = useAppStore((s) => s.stopStreaming)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const canSend = input.trim().length > 0 && !isStreaming
+
+  // Grow the textarea to fit its content up to max-h, then let it scroll
+  // internally beyond that — like Claude's composer — instead of clipping
+  // to a single visible line.
+  useEffect(() => {
+    const el = textareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  }, [input])
 
   const handleSend = () => {
     if (!canSend) return
@@ -120,12 +131,13 @@ export function Composer({ onOpenUpload }: ComposerProps) {
             </div>
           )}
           <textarea
+            ref={textareaRef}
             value={input}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             rows={1}
             placeholder="Спросите про свои траты…"
-            className="max-h-[140px] w-full resize-none border-0 bg-transparent py-1.5 text-[14.5px] leading-relaxed outline-none"
+            className="max-h-[200px] w-full resize-none overflow-y-auto border-0 bg-transparent py-1.5 text-[14.5px] leading-relaxed outline-none"
             style={{ color: 'var(--color-ink)' }}
           />
           <div className="mt-0.5 flex items-center gap-1.5">

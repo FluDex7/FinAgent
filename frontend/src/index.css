@@ -8,10 +8,6 @@
   --color-surface-2: rgba(255, 255, 255, 0.4);
   --color-panel: rgba(255, 255, 255, 0.14);
   --color-sheet: rgba(255, 255, 255, 0.9);
-  /* Full-panel overlays (document viewer, review panel) sit directly over live
-     chat UI with no dimming scrim behind them, unlike modals — they need to be
-     near-opaque so nothing behind reads as legible "ghost" text. */
-  --color-overlay: rgba(255, 255, 255, 0.97);
   --color-border: rgba(255, 255, 255, 0.6);
   --color-ink: #123a5f;
   --color-muted: #3f628a;
@@ -41,7 +37,6 @@
   --color-surface-2: rgba(255, 255, 255, 0.07);
   --color-panel: rgba(15, 25, 45, 0.22);
   --color-sheet: rgba(20, 30, 50, 0.92);
-  --color-overlay: rgba(20, 30, 50, 0.97);
   --color-border: rgba(255, 255, 255, 0.18);
   --color-ink: #eaf2fb;
   --color-muted: #aebfd6;
