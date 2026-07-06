@@ -97,15 +97,16 @@ function App() {
         />
 
         <main className="relative flex h-full min-w-0 flex-1 flex-col" style={{ background: 'transparent' }}>
-          <Topbar onOpenSettings={() => setSettingsOpen(true)} />
-
           {/* Hidden (not just covered) while an overlay is open — the overlay's
               glass background blurs whatever's behind it, and legible chat
-              controls bleeding through unblurred read as a rendering bug. With
-              nothing but the outer shell's decorative backdrop behind it, a low
-              opacity + blur reads as glass instead of broken. */}
+              controls (including the topbar, which sits at the same y=0 as the
+              overlay's own header and bled through/collided with it) read as a
+              rendering bug otherwise. With nothing but the outer shell's
+              decorative backdrop behind it, a low opacity + blur reads as
+              glass instead of broken. */}
           {!overlayOpen && (
             <>
+              <Topbar onOpenSettings={() => setSettingsOpen(true)} />
               <div className="flex-1 overflow-y-auto">
                 <div className="mx-auto max-w-[760px] px-6 pb-8 pt-6">
                   {isEmpty ? <EmptyState onOpenUpload={() => setUploadOpen(true)} /> : <ChatFeed />}
