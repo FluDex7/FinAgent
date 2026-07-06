@@ -76,7 +76,7 @@ function App() {
       >
         <Sidebar onOpenUpload={() => setUploadOpen(true)} onOpenSettings={() => setSettingsOpen(true)} onOpenDocument={setOpenDocumentId} />
 
-        <main className="relative flex h-full min-w-0 flex-1 flex-col" style={{ background: 'var(--color-sheet)' }}>
+        <main className="relative flex h-full min-w-0 flex-1 flex-col" style={{ background: 'transparent' }}>
           <Topbar onOpenSettings={() => setSettingsOpen(true)} />
 
           <div className="flex-1 overflow-y-auto">

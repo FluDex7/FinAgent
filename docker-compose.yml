@@ -46,13 +46,22 @@ services:
         condition: service_healthy
       qdrant:
         condition: service_started
+    healthcheck:
+      # migrations + uvicorn startup take a few seconds — without this,
+      # frontend can start proxying to a backend that isn't listening yet.
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
 
   frontend:
     build: ./frontend
     ports:
       - "3000:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
 volumes:
   postgres_data:
