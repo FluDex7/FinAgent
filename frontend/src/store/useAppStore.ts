@@ -236,19 +236,15 @@ export const useAppStore = create<AppStore>((set, get) => ({
         }
       }
 
-      const chatId = get().activeChatId
-      if (chatId) {
-        try {
-          const messages = await getMessages(chatId)
-          set({ messages })
-          if (wasNewChat) {
-            await get().loadChats()
-          }
-        } catch {
-          // Stream completed fine; only the authoritative refresh failed.
-          // Keep the locally-accumulated response instead of losing it.
-          materializeStreamingMessage(get, set)
-        }
+      // Don't re-fetch messages from the server here: FastAPI's session-commit
+      // dependency for a StreamingResponse only runs after the whole SSE body
+      // has been sent, so a GET fired the instant the stream ends can race
+      // ahead of that commit and come back without the turn that just
+      // finished — silently wiping it from the screen. We already have the
+      // full text/tools/blocks from the stream itself, so just use that.
+      materializeStreamingMessage(get, set)
+      if (wasNewChat) {
+        await get().loadChats()
       }
     } catch (err) {
       if ((err as Error).name === 'AbortError') {

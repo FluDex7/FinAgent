@@ -26,6 +26,10 @@ def _format_period(date_from: date, date_to: date) -> str:
     return f"{date_from:%Y-%m-%d}_{date_to:%Y-%m-%d}"
 
 
+def _is_visible(path: Path) -> bool:
+    return not path.name.startswith(".")
+
+
 def _unique_filename(directory: Path, base_name: str, ext: str) -> str:
     candidate = f"{base_name}.{ext}"
     if not (directory / candidate).exists():
@@ -86,25 +90,25 @@ class StatementsService:
             files = [
                 self._to_doc_file(p, folder, statements_by_path.get((folder, p.name)))
                 for p in sorted(target.iterdir())
-                if p.is_file()
+                if p.is_file() and _is_visible(p)
             ]
             return [DocFolderOut(name=folder, files=files)]
 
         root = self._resolve_dir("")
         folders: list[DocFolderOut] = []
 
-        loose_files = [p for p in sorted(root.iterdir()) if p.is_file()]
+        loose_files = [p for p in sorted(root.iterdir()) if p.is_file() and _is_visible(p)]
         if loose_files:
             files = [
                 self._to_doc_file(p, "", statements_by_path.get(("", p.name))) for p in loose_files
             ]
             folders.append(DocFolderOut(name="", files=files))
 
-        for subdir in sorted(p for p in root.iterdir() if p.is_dir()):
+        for subdir in sorted(p for p in root.iterdir() if p.is_dir() and _is_visible(p)):
             files = [
                 self._to_doc_file(p, subdir.name, statements_by_path.get((subdir.name, p.name)))
                 for p in sorted(subdir.iterdir())
-                if p.is_file()
+                if p.is_file() and _is_visible(p)
             ]
             folders.append(DocFolderOut(name=subdir.name, files=files))
 
