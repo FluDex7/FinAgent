@@ -21,8 +21,6 @@ _BANK_LABELS = {"tbank": "тбанк", "sberbank": "сбербанк"}
 
 
 def _format_period(date_from: date, date_to: date) -> str:
-    if (date_from.year, date_from.month) == (date_to.year, date_to.month):
-        return f"{date_from:%Y-%m}"
     return f"{date_from:%Y-%m-%d}_{date_to:%Y-%m-%d}"
 
 

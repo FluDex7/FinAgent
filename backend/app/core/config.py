@@ -25,6 +25,8 @@ class Settings(BaseSettings):
     mlflow_tracking_uri: str = "sqlite:///./mlflow.db"
     mlflow_experiment_name: str = "finagent"
 
+    ui_url: str = "http://localhost:3000"
+
 
 @lru_cache
 def get_settings() -> Settings:

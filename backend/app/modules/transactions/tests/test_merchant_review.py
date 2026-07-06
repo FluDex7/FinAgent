@@ -81,6 +81,28 @@ async def test_recategorize_merchant_updates_existing_transactions(
     assert merchant_id not in [m.id for m in review]
 
 
+async def test_list_merchants_includes_transaction_count_and_sample(
+    service: TransactionsService,
+):
+    misc = await service.get_or_create_category("Прочее")
+    merchant_id = await service.upsert_merchant("KAZANMETRO", misc.id, MerchantSource.llm)
+    rows = await service.bulk_create(
+        STATEMENT_ID,
+        [
+            TransactionIn(date="2025-01-14", amount="-10.00", raw_description="KAZANMETRO 5443"),
+            TransactionIn(date="2025-01-15", amount="-20.00", raw_description="KAZANMETRO 5443"),
+        ],
+    )
+    for row in rows:
+        await service.set_transaction_category(row.id, merchant_id, misc.id)
+
+    merchants = await service.list_merchants(needs_review=True)
+    merchant = next(m for m in merchants if m.id == merchant_id)
+
+    assert merchant.transaction_count == 2
+    assert merchant.sample_description == "KAZANMETRO 5443"
+
+
 async def test_recategorize_unknown_merchant_raises(service: TransactionsService):
     category = await service.get_or_create_category("Прочее")
     with pytest.raises(MerchantNotFoundError):

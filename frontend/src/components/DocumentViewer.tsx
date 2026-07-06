@@ -54,18 +54,15 @@ export function DocumentViewer({ statementId, onClose }: DocumentViewerProps) {
     let cancelled = false
     setLoading(true)
     setError(null)
-    Promise.all([
-      getStatement(statementId),
-      getStatementTransactions(statementId, 10, 0),
-      listCategories(),
-      listMerchants(false),
-    ])
-      .then(([stmt, txs, cats, merch]) => {
+    Promise.all([getStatement(statementId), listCategories(), listMerchants(false)])
+      .then(async ([stmt, cats, merch]) => {
         if (cancelled) return
         setStatement(stmt)
-        setTransactions(txs)
         setCategories(cats)
         setMerchants(merch)
+        const txs = await getStatementTransactions(statementId, stmt.transactionCount, 0)
+        if (cancelled) return
+        setTransactions(txs)
       })
       .catch((err) => {
         if (!cancelled) setError((err as Error).message)
@@ -84,7 +81,7 @@ export function DocumentViewer({ statementId, onClose }: DocumentViewerProps) {
   return (
     <div
       className="animate-fa-in absolute inset-0 z-30 flex flex-col"
-      style={{ background: 'var(--color-sheet)', backdropFilter: 'blur(20px)' }}
+      style={{ background: 'var(--color-panel)', backdropFilter: 'blur(30px) saturate(140%)' }}
     >
       <header
         className="flex h-[54px] flex-shrink-0 items-center gap-3 border-b px-[18px]"
@@ -196,7 +193,7 @@ export function DocumentViewer({ statementId, onClose }: DocumentViewerProps) {
                 })}
               </div>
               <p className="mt-3.5 text-center text-xs" style={{ color: 'var(--color-faint)' }}>
-                Показаны первые {transactions.length} из {statement.transactionCount} транзакций выписки
+                Всего транзакций: {transactions.length}
               </p>
             </>
           )}

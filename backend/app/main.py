@@ -22,7 +22,7 @@ setup_tracing(settings)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     results = await run_health_checks(engine, settings)
-    print_health_banner(results, ui_url="http://localhost:8000")
+    print_health_banner(results, ui_url=settings.ui_url)
     yield
 
 

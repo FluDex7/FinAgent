@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { CategoryReviewPanel } from './components/CategoryReviewPanel'
 import { ChatFeed } from './components/ChatFeed'
 import { Composer } from './components/Composer'
 import { DocumentViewer } from './components/DocumentViewer'
@@ -21,10 +22,12 @@ function App() {
   const loadDocuments = useAppStore((s) => s.loadDocuments)
   const loadChats = useAppStore((s) => s.loadChats)
   const loadHealth = useAppStore((s) => s.loadHealth)
+  const loadMerchantsNeedingReview = useAppStore((s) => s.loadMerchantsNeedingReview)
   const messages = useAppStore((s) => s.messages)
   const error = useAppStore((s) => s.error)
   const clearError = useAppStore((s) => s.clearError)
   const [openDocumentId, setOpenDocumentId] = useState<string | null>(null)
+  const [reviewOpen, setReviewOpen] = useState(false)
   const [uploadOpen, setUploadOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
 
@@ -36,7 +39,8 @@ function App() {
     void loadDocuments()
     void loadChats()
     void loadHealth()
-  }, [loadDocuments, loadChats, loadHealth])
+    void loadMerchantsNeedingReview()
+  }, [loadDocuments, loadChats, loadHealth, loadMerchantsNeedingReview])
 
   const isEmpty = messages.length === 0
 
@@ -74,7 +78,22 @@ function App() {
           boxShadow: '0 30px 80px rgba(20,60,120,.32), inset 0 1px 0 rgba(255,255,255,.5)',
         }}
       >
-        <Sidebar onOpenUpload={() => setUploadOpen(true)} onOpenSettings={() => setSettingsOpen(true)} onOpenDocument={setOpenDocumentId} />
+        <Sidebar
+          onOpenUpload={() => setUploadOpen(true)}
+          onOpenSettings={() => setSettingsOpen(true)}
+          onOpenDocument={(id) => {
+            setReviewOpen(false)
+            setOpenDocumentId(id)
+          }}
+          onCloseDocument={() => {
+            setOpenDocumentId(null)
+            setReviewOpen(false)
+          }}
+          onOpenReview={() => {
+            setOpenDocumentId(null)
+            setReviewOpen(true)
+          }}
+        />
 
         <main className="relative flex h-full min-w-0 flex-1 flex-col" style={{ background: 'transparent' }}>
           <Topbar onOpenSettings={() => setSettingsOpen(true)} />
@@ -99,6 +118,7 @@ function App() {
           {openDocumentId && (
             <DocumentViewer statementId={openDocumentId} onClose={() => setOpenDocumentId(null)} />
           )}
+          {reviewOpen && <CategoryReviewPanel onClose={() => setReviewOpen(false)} />}
         </main>
       </div>
 
