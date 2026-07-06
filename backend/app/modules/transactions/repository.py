@@ -45,10 +45,19 @@ class TransactionRepository:
     async def execute_readonly_query(
         self, sql: str, *, timeout_ms: int = 3000
     ) -> list[dict]:
-        """Runs an already-validated (SELECT-only, whitelisted) SQL string for sql_query."""
-        await self.session.execute(text(f"SET LOCAL statement_timeout = {timeout_ms}"))
-        result = await self.session.execute(text(sql))
-        return [dict(row._mapping) for row in result.fetchall()]
+        """Runs an already-validated (SELECT-only, whitelisted) SQL string for sql_query.
+
+        Wrapped in a SAVEPOINT: the model-generated SQL can still fail at runtime
+        (e.g. a non-UUID literal against a uuid column) even after static validation.
+        Without a savepoint, Postgres aborts the whole surrounding transaction on that
+        error, so anything else in the same request — including persisting the chat
+        message at the end — would fail too. A savepoint contains the damage to just
+        this query.
+        """
+        async with self.session.begin_nested():
+            await self.session.execute(text(f"SET LOCAL statement_timeout = {timeout_ms}"))
+            result = await self.session.execute(text(sql))
+            return [dict(row._mapping) for row in result.fetchall()]
 
     async def list_categories(self) -> list[Category]:
         result = await self.session.execute(select(Category))

@@ -125,6 +125,33 @@ async def test_stream_chat_discards_narration_from_a_tool_calling_turn(monkeypat
     assert "SELECT" not in messages[-1].text
 
 
+async def test_stream_chat_strips_sql_leaked_into_the_final_tool_free_answer(
+    monkeypatch, agent_service
+):
+    # Some models copy sql_query's own generated SQL verbatim into what IS their
+    # genuine final (tool-free) answer, e.g. after seeing it in a ToolMessage —
+    # the run_id-buffering discard doesn't help here since this turn has no tool
+    # call of its own; a deterministic sanitizer is the only reliable fix.
+    final = AIMessage(
+        content=(
+            "SELECT category_id, SUM(amount) AS total FROM transactions "
+            "WHERE statement_id IN ('x') GROUP BY category_id;"
+            "Вот основные категории ваших трат."
+        )
+    )
+    _use_fake_model(monkeypatch, [final])
+
+    events = [e async for e in agent_service.stream_chat(None, "на что я трачу", [])]
+
+    token_text = "".join(e["data"]["text"] for e in events if e["event"] == "token")
+    assert "SELECT" not in token_text
+    assert token_text.strip() == "Вот основные категории ваших трат."
+
+    chat_id = events[0]["data"]["chatId"]
+    messages = await agent_service.get_messages(chat_id)
+    assert "SELECT" not in messages[-1].text
+
+
 async def test_stream_chat_continues_existing_chat_with_history(monkeypatch, agent_service):
     _use_fake_model(monkeypatch, [AIMessage(content="первый ответ")])
     first_events = [e async for e in agent_service.stream_chat(None, "вопрос 1", [])]

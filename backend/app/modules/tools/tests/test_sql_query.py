@@ -75,6 +75,22 @@ async def test_run_sql_query_rejects_unsafe_generated_sql(transactions_service):
         )
 
 
+async def test_bad_sql_does_not_poison_the_session_for_later_queries(transactions_service):
+    # A runtime DB error (e.g. a non-UUID literal against a uuid column) must be
+    # contained to a savepoint — without one, Postgres aborts the whole transaction
+    # and every later query on the same session (including persisting the chat
+    # message) fails too, which is exactly what silently killed a real chat turn.
+    with pytest.raises(Exception):  # noqa: B017 - asyncpg's own DBAPI error class
+        await transactions_service.run_validated_sql(
+            "SELECT * FROM transactions WHERE statement_id = 'not-a-uuid'"
+        )
+
+    rows = await transactions_service.run_validated_sql(
+        f"SELECT COUNT(*) AS n FROM transactions WHERE statement_id = '{STATEMENT_ID}'"
+    )
+    assert rows[0]["n"] == 2
+
+
 async def test_build_sql_query_tool_end_to_end(transactions_service):
     fake_model = FakeListChatModel(
         responses=[f"SELECT COUNT(*) AS n FROM transactions WHERE statement_id = '{STATEMENT_ID}'"]

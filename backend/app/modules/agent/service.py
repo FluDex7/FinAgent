@@ -1,3 +1,4 @@
+import re
 import uuid
 from collections.abc import AsyncIterator
 from typing import Any
@@ -21,6 +22,17 @@ from app.shared.llm import get_chat_model
 
 class ChatNotFoundError(AppError):
     status_code = 404
+
+
+# Some models copy sql_query's own generated SQL verbatim into their user-facing
+# answer instead of just summarizing it in prose — that's their genuine final
+# (tool-free) turn, so the run_id-buffering discard below never sees it. Prompting
+# alone doesn't reliably stop this, so strip it here as a last line of defense.
+_LEAKED_SQL_RE = re.compile(r"\bSELECT\b.*?\bFROM\b.*?;\s*", re.IGNORECASE | re.DOTALL)
+
+
+def _strip_leaked_sql(text: str) -> str:
+    return _LEAKED_SQL_RE.sub("", text).strip()
 
 
 def _title_from_message(message: str) -> str:
@@ -170,11 +182,11 @@ class AgentService:
 
                 elif kind == "on_chat_model_end":
                     output = event["data"]["output"]
-                    buffered = pending_text.pop(event["run_id"], "")
+                    pending_text.pop(event["run_id"], "")
                     if not getattr(output, "tool_calls", None):
-                        final_text = output.content
-                        if buffered:
-                            yield {"event": "token", "data": {"text": buffered}}
+                        final_text = _strip_leaked_sql(output.content)
+                        if final_text:
+                            yield {"event": "token", "data": {"text": final_text}}
 
                 elif kind == "on_tool_start":
                     call_id = str(event["run_id"])
@@ -200,12 +212,16 @@ class AgentService:
             yield {"event": "error", "data": {"message": str(exc)}}
             return
 
-        await self.repo.add_message(
-            chat.id,
-            MessageRole.agent,
-            final_text,
-            scope={"files": scope_files, "auto": scope_auto} if scope_files else None,
-            tools=tool_calls or None,
-            blocks=blocks or None,
-        )
+        try:
+            await self.repo.add_message(
+                chat.id,
+                MessageRole.agent,
+                final_text,
+                scope={"files": scope_files, "auto": scope_auto} if scope_files else None,
+                tools=tool_calls or None,
+                blocks=blocks or None,
+            )
+        except Exception as exc:  # noqa: BLE001 - a late DB failure must not kill the stream silently
+            yield {"event": "error", "data": {"message": str(exc)}}
+            return
         yield {"event": "done", "data": {}}
