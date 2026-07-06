@@ -9,6 +9,7 @@ from app.modules.tools.plot_chart import plot_chart
 from app.modules.tools.rag_lookup import build_rag_lookup_tool
 from app.modules.tools.read_document import build_read_document_tool
 from app.modules.tools.sql_query import build_sql_query_tool
+from app.modules.tools.web_search import build_web_search_tool
 from app.modules.transactions.service import TransactionsService
 
 
@@ -18,7 +19,7 @@ def build_tools(
     chat_model: BaseChatModel,
     settings: Settings,
 ) -> list[BaseTool]:
-    return [
+    tools: list[BaseTool] = [
         build_sql_query_tool(transactions_service, chat_model),
         plot_chart,
         build_compare_periods_tool(transactions_service),
@@ -26,3 +27,7 @@ def build_tools(
         build_rag_lookup_tool(settings),
         build_read_document_tool(statements_service),
     ]
+    web_search = build_web_search_tool(settings)
+    if web_search is not None:
+        tools.append(web_search)
+    return tools

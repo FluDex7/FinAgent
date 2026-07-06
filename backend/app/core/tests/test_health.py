@@ -10,6 +10,7 @@ from app.core.health import (
     check_qdrant,
     check_statements_dir,
     check_tesseract,
+    check_web_search,
 )
 
 
@@ -96,3 +97,18 @@ def test_check_mlflow_reports_configured_uri():
     assert result.ok is True
     assert "mlflow.db" in result.detail
     assert "finagent" in result.detail
+
+
+def test_check_web_search_ok_when_disabled():
+    # Optional feature — a missing key is never an environment "problem".
+    settings = make_settings(tavily_api_key=None)
+    result = check_web_search(settings)
+    assert result.ok is True
+    assert "отключён" in result.detail
+
+
+def test_check_web_search_ok_when_configured():
+    settings = make_settings(tavily_api_key="tvly-test")
+    result = check_web_search(settings)
+    assert result.ok is True
+    assert "Tavily" in result.detail
