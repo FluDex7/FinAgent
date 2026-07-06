@@ -89,6 +89,42 @@ async def test_stream_chat_runs_tool_and_emits_block(monkeypatch, agent_service)
     assert agent_message.blocks is not None
 
 
+async def test_stream_chat_discards_narration_from_a_tool_calling_turn(monkeypatch, agent_service):
+    # Some models interleave pre-tool-call narration (or even a leaked SQL query)
+    # into the same turn's content alongside a tool call — that text must never
+    # reach the user or get persisted, only the later tool-free answer should.
+    tool_call = AIMessage(
+        content="Сейчас посчитаю. SELECT SUM(amount) FROM transactions;",
+        tool_calls=[
+            {
+                "name": "plot_chart",
+                "args": {"kind": "bars", "data": [{"label": "Март", "value": 100}]},
+                "id": "call1",
+            }
+        ],
+    )
+    final = AIMessage(content="Вот график трат.")
+    _use_fake_model(monkeypatch, [tool_call, final])
+
+    from app.modules.tools.plot_chart import plot_chart as real_plot_chart
+
+    monkeypatch.setattr(
+        "app.modules.agent.registry.build_tools",
+        lambda transactions_service, statements_service, chat_model, settings: [real_plot_chart],
+    )
+
+    events = [e async for e in agent_service.stream_chat(None, "покажи график", [])]
+
+    token_text = "".join(e["data"]["text"] for e in events if e["event"] == "token")
+    assert "SELECT" not in token_text
+    assert "Сейчас посчитаю" not in token_text
+    assert token_text.strip() == "Вот график трат."
+
+    chat_id = events[0]["data"]["chatId"]
+    messages = await agent_service.get_messages(chat_id)
+    assert "SELECT" not in messages[-1].text
+
+
 async def test_stream_chat_continues_existing_chat_with_history(monkeypatch, agent_service):
     _use_fake_model(monkeypatch, [AIMessage(content="первый ответ")])
     first_events = [e async for e in agent_service.stream_chat(None, "вопрос 1", [])]

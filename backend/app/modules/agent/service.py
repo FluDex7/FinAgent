@@ -153,18 +153,28 @@ class AgentService:
             graph = build_agent_graph(chat_model, tools, system_prompt=system_prompt)
 
             inputs = {"messages": [*history, HumanMessage(content=message)]}
+            # Some models interleave pre-tool-call narration (or even a leaked raw SQL
+            # query) into the same turn's content as a tool call. Buffer each model
+            # turn's streamed text by run_id and only forward it once on_chat_model_end
+            # confirms that turn made no tool calls — otherwise it's discarded, never
+            # shown to the user or persisted.
+            pending_text: dict[str, str] = {}
             async for event in graph.astream_events(inputs, version="v2"):
                 kind = event["event"]
 
                 if kind == "on_chat_model_stream":
+                    run_id = event["run_id"]
                     chunk = event["data"]["chunk"]
                     if chunk.content:
-                        yield {"event": "token", "data": {"text": chunk.content}}
+                        pending_text[run_id] = pending_text.get(run_id, "") + chunk.content
 
                 elif kind == "on_chat_model_end":
                     output = event["data"]["output"]
+                    buffered = pending_text.pop(event["run_id"], "")
                     if not getattr(output, "tool_calls", None):
                         final_text = output.content
+                        if buffered:
+                            yield {"event": "token", "data": {"text": buffered}}
 
                 elif kind == "on_tool_start":
                     call_id = str(event["run_id"])

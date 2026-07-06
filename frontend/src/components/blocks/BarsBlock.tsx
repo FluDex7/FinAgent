@@ -1,4 +1,5 @@
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { normalizeMagnitude } from './normalizeMagnitude'
 
 interface BarPoint {
   label: string
@@ -33,7 +34,7 @@ function BarTooltip({ active, payload }: { active?: boolean; payload?: Array<{ p
 }
 
 export function BarsBlock({ data, title }: { data: unknown; title?: string }) {
-  const points = Array.isArray(data) ? (data as BarPoint[]) : []
+  const points = normalizeMagnitude(Array.isArray(data) ? (data as BarPoint[]) : [])
   if (points.length === 0) return null
 
   return (
