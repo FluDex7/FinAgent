@@ -67,3 +67,14 @@ async def test_resolve_scope_falls_back_to_clarification_on_bad_json():
     model = FakeListChatModel(responses=["это не json вовсе"])
     result = await resolve_scope(model, "что-то", TREE)
     assert result.needs_clarification
+
+
+async def test_resolve_scope_replaces_echoed_placeholder_text():
+    # A model can echo the prompt's own placeholder instead of writing a real
+    # question — this must never reach the user verbatim.
+    model = FakeListChatModel(
+        responses=['{"clarification": "твой уточняющий вопрос пользователю, а не этот текст"}']
+    )
+    result = await resolve_scope(model, "привет", TREE)
+    assert result.needs_clarification
+    assert result.clarification == "Уточните, пожалуйста, за какой период вас интересуют траты?"

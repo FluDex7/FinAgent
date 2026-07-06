@@ -99,6 +99,18 @@ async def test_browse_tree_path_traversal_rejected(service: StatementsService):
         await service.browse_tree("../../etc")
 
 
+async def test_browse_tree_ignores_dotfiles(service: StatementsService):
+    (service.root / ".gitkeep").write_bytes(b"")
+    (service.root / "2025").mkdir()
+    (service.root / "2025" / ".gitkeep").write_bytes(b"")
+    await service.upload(filename="q1.csv", folder="2025", content=CSV_CONTENT)
+
+    tree = await service.browse_tree()
+    assert len(tree) == 1
+    assert tree[0].name == "2025"
+    assert [f.name for f in tree[0].files] == ["q1"]
+
+
 async def test_get_statement_not_found_raises(service: StatementsService):
     import uuid
 

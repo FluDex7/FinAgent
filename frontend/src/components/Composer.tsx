@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { KeyboardEvent } from 'react'
+import type { ChangeEvent, KeyboardEvent } from 'react'
 import { useAppStore } from '../store/useAppStore'
 import { AtPicker } from './AtPicker'
 import type { Ref } from '../api/types'
@@ -63,6 +63,21 @@ export function Composer({ onOpenUpload }: ComposerProps) {
     void sendMessage(text, refs)
   }
 
+  const handleInputChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value
+    // Typing "@" at the start or after whitespace opens the same picker the
+    // button does, instead of leaving it as a dead character in the message —
+    // it'll turn into a ref chip once something is picked.
+    const justTypedAt = value.length === input.length + 1 && value.endsWith('@')
+    const charBeforeAt = value.slice(-2, -1)
+    if (justTypedAt && (charBeforeAt === '' || /\s/.test(charBeforeAt))) {
+      setInput(value.slice(0, -1))
+      setAtOpen(true)
+      return
+    }
+    setInput(value)
+  }
+
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
@@ -106,7 +121,7 @@ export function Composer({ onOpenUpload }: ComposerProps) {
           )}
           <textarea
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             rows={1}
             placeholder="Спросите про свои траты…"
