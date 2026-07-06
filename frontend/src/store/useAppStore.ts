@@ -1,12 +1,20 @@
 import { create } from 'zustand'
 import { deleteChat, getMessages, listChats, renameChat, streamChat } from '../api/agent'
+import {
+  createCategory as createCategoryApi,
+  listCategories,
+  listMerchants,
+  recategorizeMerchant as recategorizeMerchantApi,
+} from '../api/categorization'
 import { getHealth } from '../api/health'
 import { getDocumentsTree } from '../api/statements'
 import type {
   BlockOut,
+  CategoryOut,
   ChatSummary,
   DocFolderOut,
   HealthResponse,
+  MerchantOut,
   MessageOut,
   Ref,
   ToolCallOut,
@@ -32,6 +40,14 @@ interface AppStore {
 
   health: HealthResponse | null
   loadHealth: () => Promise<void>
+
+  categories: CategoryOut[]
+  merchantsNeedingReview: MerchantOut[]
+  reviewLoading: boolean
+  loadCategories: () => Promise<void>
+  loadMerchantsNeedingReview: () => Promise<void>
+  createCategory: (name: string, color?: string) => Promise<CategoryOut>
+  recategorizeMerchant: (merchantId: string, categoryId: string) => Promise<void>
 
   chats: ChatSummary[]
   chatsLoading: boolean
@@ -112,6 +128,38 @@ export const useAppStore = create<AppStore>((set, get) => ({
     } catch (err) {
       set({ error: (err as Error).message })
     }
+  },
+
+  categories: [],
+  merchantsNeedingReview: [],
+  reviewLoading: false,
+  loadCategories: async () => {
+    try {
+      const categories = await listCategories()
+      set({ categories })
+    } catch (err) {
+      set({ error: (err as Error).message })
+    }
+  },
+  loadMerchantsNeedingReview: async () => {
+    set({ reviewLoading: true })
+    try {
+      const merchants = await listMerchants(true)
+      set({ merchantsNeedingReview: merchants })
+    } catch (err) {
+      set({ error: (err as Error).message })
+    } finally {
+      set({ reviewLoading: false })
+    }
+  },
+  createCategory: async (name: string, color?: string) => {
+    const category = await createCategoryApi(name, color)
+    set({ categories: [...get().categories, category] })
+    return category
+  },
+  recategorizeMerchant: async (merchantId: string, categoryId: string) => {
+    await recategorizeMerchantApi(merchantId, categoryId)
+    set({ merchantsNeedingReview: get().merchantsNeedingReview.filter((m) => m.id !== merchantId) })
   },
 
   chats: [],

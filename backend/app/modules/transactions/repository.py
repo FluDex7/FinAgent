@@ -117,12 +117,25 @@ class TransactionRepository:
         result = await self.session.execute(stmt)
         return dict(result.all())
 
-    async def list_merchants(self, *, needs_review: bool = False) -> list[Merchant]:
-        stmt = select(Merchant).order_by(Merchant.normalized_key)
+    async def list_merchants(
+        self, *, needs_review: bool = False
+    ) -> list[tuple[Merchant, int, str | None]]:
+        """Returns each merchant alongside its transaction count and a sample raw
+        description — context that helps a user recognize an unclear merchant name."""
+        stmt = (
+            select(
+                Merchant,
+                func.count(Transaction.id),
+                func.max(Transaction.raw_description),
+            )
+            .outerjoin(Transaction, Transaction.merchant_id == Merchant.id)
+            .group_by(Merchant.id)
+            .order_by(Merchant.normalized_key)
+        )
         if needs_review:
             stmt = stmt.where(Merchant.source == MerchantSource.llm)
         result = await self.session.execute(stmt)
-        return list(result.scalars().all())
+        return [(row[0], row[1], row[2]) for row in result.all()]
 
     async def get_merchant_by_id(self, merchant_id: uuid.UUID) -> Merchant | None:
         return await self.session.get(Merchant, merchant_id)

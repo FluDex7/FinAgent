@@ -143,9 +143,9 @@ class AgentService:
             if statement_ids:
                 ids_note = ", ".join(statement_ids)
                 system_prompt = (
-                    f"{SYSTEM_PROMPT}\n\nОбласть данных этого вопроса ограничена statement_ids: "
-                    f"{ids_note}. Всегда передавай их в параметр statement_ids инструмента "
-                    "sql_query."
+                    f"{SYSTEM_PROMPT}\n\nОбласть данных этого вопроса уже определена и ограничена "
+                    f"statement_ids: {ids_note}. Данные уже доступны — сразу вызывай sql_query с "
+                    "этими statement_ids. Не спрашивай период и не проси прикрепить/загрузить файл."
                 )
 
             tools = build_tools(self.transactions, self.statements, chat_model, self.settings)

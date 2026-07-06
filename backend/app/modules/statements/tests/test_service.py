@@ -213,8 +213,8 @@ async def test_upload_pdf_auto_renames_to_bank_period(service: StatementsService
 
     statement = await service.upload(filename="random_name.pdf", folder="2026", content=content)
 
-    assert statement.filename == "тбанк_2026-06.pdf"
-    assert (service.root / "2026" / "тбанк_2026-06.pdf").exists()
+    assert statement.filename == "тбанк_2026-06-01_2026-06-30.pdf"
+    assert (service.root / "2026" / "тбанк_2026-06-01_2026-06-30.pdf").exists()
     assert not (service.root / "2026" / "random_name.pdf").exists()
 
 
@@ -223,17 +223,17 @@ async def test_upload_sberbank_pdf_auto_renames(service: StatementsService):
 
     statement = await service.upload(filename="whatever.pdf", folder="", content=content)
 
-    assert statement.filename == "сбербанк_2024-06.pdf"
+    assert statement.filename == "сбербанк_2024-06-01_2024-06-30.pdf"
 
 
 async def test_upload_pdf_rename_avoids_collision(service: StatementsService):
     content = _pdf_fixture("tbank_funds_movement")
     (service.root / "2026").mkdir(parents=True)
-    (service.root / "2026" / "тбанк_2026-06.pdf").write_bytes(b"existing file")
+    (service.root / "2026" / "тбанк_2026-06-01_2026-06-30.pdf").write_bytes(b"existing file")
 
     statement = await service.upload(filename="another.pdf", folder="2026", content=content)
 
-    assert statement.filename == "тбанк_2026-06-2.pdf"
+    assert statement.filename == "тбанк_2026-06-01_2026-06-30-2.pdf"
 
 
 async def test_csv_upload_is_not_renamed(service: StatementsService):

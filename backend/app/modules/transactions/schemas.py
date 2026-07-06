@@ -38,3 +38,5 @@ class MerchantOut(CamelModel):
     display_name: str | None
     category_id: uuid.UUID | None
     source: MerchantSource
+    transaction_count: int = 0
+    sample_description: str | None = None

@@ -55,6 +55,8 @@ export interface MerchantOut {
   displayName: string | null
   categoryId: string | null
   source: MerchantSource
+  transactionCount: number
+  sampleDescription: string | null
 }
 
 export interface Ref {

@@ -6,6 +6,8 @@ interface SidebarProps {
   onOpenUpload: () => void
   onOpenSettings: () => void
   onOpenDocument: (statementId: string) => void
+  onCloseDocument: () => void
+  onOpenReview: () => void
 }
 
 function PlusIcon() {
@@ -81,6 +83,20 @@ function DeleteIcon() {
   )
 }
 
+function TagIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+      <path
+        d="M12.5 3H5a2 2 0 0 0-2 2v7.5a2 2 0 0 0 .59 1.41l8.5 8.5a2 2 0 0 0 2.82 0l6-6a2 2 0 0 0 0-2.82l-8.5-8.5A2 2 0 0 0 12.5 3Z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+      <circle cx="8" cy="8" r="1.4" fill="currentColor" />
+    </svg>
+  )
+}
+
 function SettingsIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
@@ -95,7 +111,13 @@ function SettingsIcon() {
   )
 }
 
-export function Sidebar({ onOpenUpload, onOpenSettings, onOpenDocument }: SidebarProps) {
+export function Sidebar({
+  onOpenUpload,
+  onOpenSettings,
+  onOpenDocument,
+  onCloseDocument,
+  onOpenReview,
+}: SidebarProps) {
   const documentsTree = useAppStore((s) => s.documentsTree)
   const chats = useAppStore((s) => s.chats)
   const activeChatId = useAppStore((s) => s.activeChatId)
@@ -104,6 +126,7 @@ export function Sidebar({ onOpenUpload, onOpenSettings, onOpenDocument }: Sideba
   const selectChat = useAppStore((s) => s.selectChat)
   const renameChatAction = useAppStore((s) => s.renameChat)
   const deleteChatAction = useAppStore((s) => s.deleteChat)
+  const reviewCount = useAppStore((s) => s.merchantsNeedingReview.length)
 
   const [openFolders, setOpenFolders] = useState<Record<string, boolean>>({})
   const [editingChatId, setEditingChatId] = useState<string | null>(null)
@@ -162,7 +185,10 @@ export function Sidebar({ onOpenUpload, onOpenSettings, onOpenDocument }: Sideba
       <div className="px-3 pb-3">
         <button
           type="button"
-          onClick={() => newChat()}
+          onClick={() => {
+            onCloseDocument()
+            newChat()
+          }}
           className="flex w-full items-center gap-2 rounded-[10px] border px-3 py-[9px] text-[13.5px] font-medium"
           style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)', color: 'var(--color-ink)' }}
         >
@@ -170,6 +196,29 @@ export function Sidebar({ onOpenUpload, onOpenSettings, onOpenDocument }: Sideba
           Новый чат
         </button>
       </div>
+
+      {reviewCount > 0 && (
+        <div className="px-3 pb-3">
+          <button
+            type="button"
+            onClick={() => {
+              onCloseDocument()
+              onOpenReview()
+            }}
+            className="flex w-full items-center gap-2 rounded-[10px] border px-3 py-[9px] text-[13.5px] font-medium"
+            style={{ borderColor: 'var(--color-border)', color: 'var(--color-ink)' }}
+          >
+            <TagIcon />
+            Требуют категории
+            <span
+              className="ml-auto rounded-full px-1.5 py-0.5 text-[11px] font-semibold text-white"
+              style={{ background: 'var(--color-accent)' }}
+            >
+              {reviewCount}
+            </span>
+          </button>
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto px-2 pb-2 pt-1">
         <div className="flex items-center justify-between px-2 py-1.5">
@@ -267,7 +316,10 @@ export function Sidebar({ onOpenUpload, onOpenSettings, onOpenDocument }: Sideba
                 <>
                   <button
                     type="button"
-                    onClick={() => selectChat(chat.id)}
+                    onClick={() => {
+                      onCloseDocument()
+                      selectChat(chat.id)
+                    }}
                     className="flex min-w-0 flex-1 items-center gap-2 rounded-[7px] px-2 py-[7px] text-left text-[13px]"
                     style={{
                       background: isActive ? 'var(--color-surface-2)' : 'transparent',

@@ -119,6 +119,8 @@ cd frontend && npx tsc --noEmit && npm run lint && npm run build
 
 Every agent turn — model calls, tool calls, graph branches — is traced automatically via `mlflow.langchain.autolog()`, fully locally, no telemetry.
 
+With `docker compose up`, the UI is already served at http://localhost:5000. For local (non-Docker) dev, run it yourself:
+
 ```bash
 cd backend
 uv run mlflow ui --backend-store-uri sqlite:///./mlflow.db

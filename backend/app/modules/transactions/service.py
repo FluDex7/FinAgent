@@ -64,7 +64,18 @@ class TransactionsService:
 
     async def list_merchants(self, *, needs_review: bool = False) -> list[MerchantOut]:
         rows = await self.repo.list_merchants(needs_review=needs_review)
-        return [MerchantOut.model_validate(r) for r in rows]
+        return [
+            MerchantOut(
+                id=merchant.id,
+                normalized_key=merchant.normalized_key,
+                display_name=merchant.display_name,
+                category_id=merchant.category_id,
+                source=merchant.source,
+                transaction_count=count,
+                sample_description=sample,
+            )
+            for merchant, count, sample in rows
+        ]
 
     async def recategorize_merchant(
         self, merchant_id: uuid.UUID, category_id: uuid.UUID
