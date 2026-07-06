@@ -1,3 +1,4 @@
+import json
 import re
 import uuid
 from collections.abc import AsyncIterator
@@ -44,12 +45,23 @@ def _title_from_message(message: str) -> str:
 
 
 def _tool_detail(name: str, output: Any) -> str | None:
-    if not isinstance(output, dict):
-        return None
-    if name == "sql_query":
-        return output.get("sql")
-    if name == "plot_chart":
-        return f"{output.get('kind')}: {len(output.get('data') or [])} точек"
+    """What to show when a user expands a tool badge in the chat.
+
+    sql_query/plot_chart get a short, purpose-built summary; every other tool
+    (compare_periods, find_subscriptions, rag_lookup, read_document, web_search, and
+    anything added later) still needs SOMETHING to show — falling through to None
+    for unrecognized tools left the expand arrow toggling open onto an empty panel.
+    """
+    if isinstance(output, dict):
+        if name == "sql_query":
+            return output.get("sql")
+        if name == "plot_chart":
+            return f"{output.get('kind')}: {len(output.get('data') or [])} точек"
+        return json.dumps(output, ensure_ascii=False, indent=2, default=str)
+    if isinstance(output, list):
+        return json.dumps(output, ensure_ascii=False, indent=2, default=str)
+    if isinstance(output, str):
+        return output.strip() or None
     return None
 
 

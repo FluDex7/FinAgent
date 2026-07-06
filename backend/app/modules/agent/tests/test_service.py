@@ -89,6 +89,59 @@ async def test_stream_chat_runs_tool_and_emits_block(monkeypatch, agent_service)
     assert agent_message.blocks is not None
 
 
+async def test_stream_chat_sets_detail_for_tools_beyond_sql_query_and_plot_chart(
+    monkeypatch, agent_service
+):
+    # _tool_detail() used to only recognize sql_query/plot_chart and only unwrap dict
+    # output — every other tool (find_subscriptions returns a list, rag_lookup/
+    # read_document return a plain string) silently got detail=None, so the UI's
+    # expand arrow toggled open onto an empty panel. Cover both shapes here.
+    from langchain_core.tools import tool
+
+    @tool
+    def find_subscriptions() -> list[dict]:
+        """Fake find_subscriptions returning a list of dicts."""
+        return [{"merchant": "Netflix", "avgAmount": 999.0}]
+
+    @tool
+    def rag_lookup() -> str:
+        """Fake rag_lookup returning a plain string."""
+        return "Т-Банк использует формат даты ДД.ММ.ГГГГ."
+
+    tool_call = AIMessage(
+        content="",
+        tool_calls=[
+            {"name": "find_subscriptions", "args": {}, "id": "call1"},
+            {"name": "rag_lookup", "args": {}, "id": "call2"},
+        ],
+    )
+    final = AIMessage(content="Готово.")
+    _use_fake_model(monkeypatch, [tool_call, final])
+
+    monkeypatch.setattr(
+        service_module,
+        "build_tools",
+        lambda transactions_service, statements_service, chat_model, settings: [
+            find_subscriptions,
+            rag_lookup,
+        ],
+    )
+
+    events = [e async for e in agent_service.stream_chat(None, "найди подписки", [])]
+
+    tool_end_events = [e for e in events if e["event"] == "tool_end"]
+    details = {e["data"]["name"]: e["data"]["detail"] for e in tool_end_events}
+    assert details["find_subscriptions"] is not None
+    assert "Netflix" in details["find_subscriptions"]
+    assert details["rag_lookup"] == "Т-Банк использует формат даты ДД.ММ.ГГГГ."
+
+    chat_id = events[0]["data"]["chatId"]
+    messages = await agent_service.get_messages(chat_id)
+    persisted_tools = {t.name: t.detail for t in messages[-1].tools}
+    assert persisted_tools["find_subscriptions"] is not None
+    assert persisted_tools["rag_lookup"] == "Т-Банк использует формат даты ДД.ММ.ГГГГ."
+
+
 async def test_stream_chat_discards_narration_from_a_tool_calling_turn(monkeypatch, agent_service):
     # Some models interleave pre-tool-call narration (or even a leaked SQL query)
     # into the same turn's content alongside a tool call — that text must never
