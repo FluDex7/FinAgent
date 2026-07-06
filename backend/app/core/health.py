@@ -93,6 +93,14 @@ def check_mlflow(settings: Settings) -> CheckResult:
     )
 
 
+def check_web_search(settings: Settings) -> CheckResult:
+    """Optional and informational only — the agent works fine without it, so this
+    never counts as an environment "problem" the way a missing LLM key does."""
+    if settings.tavily_api_key:
+        return CheckResult("Веб-поиск", True, "Tavily, ключ задан")
+    return CheckResult("Веб-поиск", True, "отключён (TAVILY_API_KEY не задан)")
+
+
 def check_tesseract() -> CheckResult:
     binary = shutil.which("tesseract")
     if not binary:
@@ -121,4 +129,5 @@ async def run_health_checks(engine: AsyncEngine, settings: Settings) -> list[Che
         check_statements_dir(settings),
         check_tesseract(),
         check_mlflow(settings),
+        check_web_search(settings),
     ]

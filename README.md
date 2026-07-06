@@ -28,6 +28,7 @@ Upload a PDF or CSV, then ask questions in plain language — *"what am I spendi
 - **@-mentions** — point a question at a specific file or folder, or let the agent infer scope from the question itself.
 - **RAG knowledge base** about bank statement formats and categorization rules (LlamaIndex + Qdrant).
 - **MLflow tracing** of every agent run — fully local, no external service.
+- **Optional web search** (Tavily) for things no local data can answer — exchange rates, current events. Off by default; the agent is instructed to never send it any of your financial data.
 - Light/dark theme. Zero telemetry.
 
 ## Quick Start
@@ -76,6 +77,7 @@ All variables live in [`.env.example`](.env.example).
 | `STATEMENTS_DIR` | `./data` | Where uploaded statements are stored |
 | `MLFLOW_TRACKING_URI` | `sqlite:///./mlflow.db` | Local MLflow tracking store |
 | `MLFLOW_EXPERIMENT_NAME` | `finagent` | MLflow experiment name |
+| `TAVILY_API_KEY` | — | Optional. Enables `web_search` for external facts (exchange rates, current events). Get a key at [tavily.com](https://tavily.com) — the only tool that leaves your machine, and only ever for non-financial queries. |
 
 Go fully offline with Ollama:
 

@@ -1,6 +1,7 @@
 import re
 import uuid
 from collections.abc import AsyncIterator
+from datetime import date
 from typing import Any
 
 from langchain_core.messages import AIMessage, HumanMessage
@@ -152,7 +153,10 @@ class AgentService:
                         )
                         yield {"event": "scope", "data": {"files": scope_files, "auto": True}}
 
-            system_prompt = SYSTEM_PROMPT
+            # The model's own training cutoff is not "now" — without this it guesses
+            # (has said "2023" outright), which throws off anything relative like
+            # "последние 3 месяца" or "в этом году".
+            system_prompt = f"{SYSTEM_PROMPT}\n\nСегодняшняя дата: {date.today().isoformat()}."
             if statement_ids:
                 ids_note = ", ".join(statement_ids)
                 system_prompt = (

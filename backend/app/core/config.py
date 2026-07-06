@@ -27,6 +27,11 @@ class Settings(BaseSettings):
 
     ui_url: str = "http://localhost:3000"
 
+    # Optional — the one outbound call FinAgent makes to a third party. Only enabled
+    # when set; the agent is told to use it strictly for things it can't know locally
+    # (exchange rates, current events), never with the user's own financial data.
+    tavily_api_key: str | None = None
+
 
 @lru_cache
 def get_settings() -> Settings:
