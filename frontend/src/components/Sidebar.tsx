@@ -127,14 +127,34 @@ export function Sidebar({
   const renameChatAction = useAppStore((s) => s.renameChat)
   const deleteChatAction = useAppStore((s) => s.deleteChat)
   const reviewCount = useAppStore((s) => s.merchantsNeedingReview.length)
+  const renameDocument = useAppStore((s) => s.renameDocument)
+  const deleteDocument = useAppStore((s) => s.deleteDocument)
 
   const [openFolders, setOpenFolders] = useState<Record<string, boolean>>({})
   const [editingChatId, setEditingChatId] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
   const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null)
 
+  const [fileMenu, setFileMenu] = useState<{ id: string; name: string; x: number; y: number } | null>(null)
+  const [editingFileId, setEditingFileId] = useState<string | null>(null)
+  const [editFileValue, setEditFileValue] = useState('')
+  const [pendingFileDelete, setPendingFileDelete] = useState<{ id: string; name: string } | null>(null)
+
   const toggleFolder = (name: string) => {
     setOpenFolders((prev) => ({ ...prev, [name]: !prev[name] }))
+  }
+
+  const startFileRename = (fileId: string, currentName: string) => {
+    setEditingFileId(fileId)
+    setEditFileValue(currentName)
+    setFileMenu(null)
+  }
+
+  const commitFileRename = async () => {
+    if (editingFileId && editFileValue.trim()) {
+      await renameDocument(editingFileId, editFileValue.trim())
+    }
+    setEditingFileId(null)
   }
 
   const startRename = (chatId: string, currentTitle: string) => {
@@ -251,6 +271,31 @@ export function Sidebar({
                 <div className="pl-2.5">
                   {folder.files.map((file) => {
                     const isParsed = file.status === 'parsed'
+                    const hasStatement = file.status !== 'new'
+                    const isEditing = editingFileId === file.id
+
+                    if (isEditing) {
+                      return (
+                        <input
+                          key={file.id}
+                          value={editFileValue}
+                          onChange={(e) => setEditFileValue(e.target.value)}
+                          onBlur={commitFileRename}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault()
+                              void commitFileRename()
+                            } else if (e.key === 'Escape') {
+                              setEditingFileId(null)
+                            }
+                          }}
+                          autoFocus
+                          className="mb-0.5 w-full rounded-md border px-[7px] py-[5px] text-[12.5px] outline-none"
+                          style={{ borderColor: 'var(--color-accent)', background: 'var(--color-surface)', color: 'var(--color-ink)' }}
+                        />
+                      )
+                    }
+
                     return (
                       <button
                         key={file.id}
@@ -258,6 +303,11 @@ export function Sidebar({
                         disabled={!isParsed}
                         title={isParsed ? undefined : 'Файл ещё не распознан'}
                         onClick={() => onOpenDocument(file.id)}
+                        onContextMenu={(e) => {
+                          if (!hasStatement) return
+                          e.preventDefault()
+                          setFileMenu({ id: file.id, name: file.name, x: e.clientX, y: e.clientY })
+                        }}
                         className="flex w-full items-center gap-[7px] rounded-[7px] px-2 py-1.5 text-left text-[12.5px]"
                         style={{ color: isParsed ? 'var(--color-muted)' : 'var(--color-faint)' }}
                       >
@@ -384,6 +434,56 @@ export function Sidebar({
           onConfirm={() => {
             deleteChatAction(pendingDelete.id)
             setPendingDelete(null)
+          }}
+        />
+      )}
+
+      {fileMenu && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setFileMenu(null)} onContextMenu={(e) => e.preventDefault()} />
+          <div
+            className="fixed z-50 min-w-[160px] overflow-hidden rounded-[10px] border py-1 text-[13px]"
+            style={{
+              left: fileMenu.x,
+              top: fileMenu.y,
+              background: 'var(--color-sheet)',
+              borderColor: 'var(--color-border)',
+              boxShadow: '0 12px 30px rgba(15,23,42,.25)',
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => startFileRename(fileMenu.id, fileMenu.name)}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left"
+              style={{ color: 'var(--color-ink)' }}
+            >
+              <RenameIcon />
+              Переименовать
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPendingFileDelete({ id: fileMenu.id, name: fileMenu.name })
+                setFileMenu(null)
+              }}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left"
+              style={{ color: 'var(--color-neg)' }}
+            >
+              <DeleteIcon />
+              Удалить
+            </button>
+          </div>
+        </>
+      )}
+
+      {pendingFileDelete && (
+        <ConfirmDialog
+          title="Удалить файл?"
+          message={`Файл «${pendingFileDelete.name}» и все его транзакции будут удалены без возможности восстановления.`}
+          onCancel={() => setPendingFileDelete(null)}
+          onConfirm={() => {
+            deleteDocument(pendingFileDelete.id)
+            setPendingFileDelete(null)
           }}
         />
       )}

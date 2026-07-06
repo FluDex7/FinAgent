@@ -47,12 +47,14 @@ services:
       qdrant:
         condition: service_started
     healthcheck:
-      # migrations + uvicorn startup take a few seconds — without this,
-      # frontend can start proxying to a backend that isn't listening yet.
+      # First boot imports mlflow + llama-index + qdrant-client (heavy, several
+      # seconds of pure import time even on fast disks) before uvicorn can bind
+      # the port — give it real headroom so a slower machine doesn't tip this
+      # over into "unhealthy" and block the frontend from ever starting.
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 5s
       timeout: 5s
-      retries: 20
+      retries: 40
       start_period: 10s
 
   frontend:

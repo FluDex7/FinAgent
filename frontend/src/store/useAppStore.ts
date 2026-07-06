@@ -7,7 +7,7 @@ import {
   recategorizeMerchant as recategorizeMerchantApi,
 } from '../api/categorization'
 import { getHealth } from '../api/health'
-import { getDocumentsTree } from '../api/statements'
+import { deleteStatement, getDocumentsTree, renameStatement } from '../api/statements'
 import type {
   BlockOut,
   CategoryOut,
@@ -37,6 +37,8 @@ interface AppStore {
   documentsTree: DocFolderOut[]
   documentsLoading: boolean
   loadDocuments: () => Promise<void>
+  renameDocument: (statementId: string, name: string) => Promise<void>
+  deleteDocument: (statementId: string) => Promise<void>
 
   health: HealthResponse | null
   loadHealth: () => Promise<void>
@@ -117,6 +119,22 @@ export const useAppStore = create<AppStore>((set, get) => ({
       set({ error: (err as Error).message })
     } finally {
       set({ documentsLoading: false })
+    }
+  },
+  renameDocument: async (statementId: string, name: string) => {
+    try {
+      await renameStatement(statementId, name)
+      await get().loadDocuments()
+    } catch (err) {
+      set({ error: (err as Error).message })
+    }
+  },
+  deleteDocument: async (statementId: string) => {
+    try {
+      await deleteStatement(statementId)
+      await get().loadDocuments()
+    } catch (err) {
+      set({ error: (err as Error).message })
     }
   },
 

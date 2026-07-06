@@ -8,6 +8,10 @@
   --color-surface-2: rgba(255, 255, 255, 0.4);
   --color-panel: rgba(255, 255, 255, 0.14);
   --color-sheet: rgba(255, 255, 255, 0.9);
+  /* Full-panel overlays (document viewer, review panel) sit directly over live
+     chat UI with no dimming scrim behind them, unlike modals — they need to be
+     near-opaque so nothing behind reads as legible "ghost" text. */
+  --color-overlay: rgba(255, 255, 255, 0.97);
   --color-border: rgba(255, 255, 255, 0.6);
   --color-ink: #123a5f;
   --color-muted: #3f628a;
@@ -37,6 +41,7 @@
   --color-surface-2: rgba(255, 255, 255, 0.07);
   --color-panel: rgba(15, 25, 45, 0.22);
   --color-sheet: rgba(20, 30, 50, 0.92);
+  --color-overlay: rgba(20, 30, 50, 0.97);
   --color-border: rgba(255, 255, 255, 0.18);
   --color-ink: #eaf2fb;
   --color-muted: #aebfd6;
@@ -157,4 +162,84 @@ body {
 
 .animate-fa-blink {
   animation: fa-blink 1s step-start infinite;
+}
+
+.fa-markdown {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.fa-markdown img {
+  max-width: 100%;
+  border-radius: 8px;
+}
+.fa-markdown p {
+  margin: 0 0 0.6em;
+}
+.fa-markdown p:last-child {
+  margin-bottom: 0;
+}
+.fa-markdown ul {
+  margin: 0 0 0.6em;
+  padding-left: 1.3em;
+  list-style: disc;
+}
+.fa-markdown ol {
+  margin: 0 0 0.6em;
+  padding-left: 1.3em;
+  list-style: decimal;
+}
+.fa-markdown li {
+  margin-bottom: 0.2em;
+}
+.fa-markdown h1,
+.fa-markdown h2,
+.fa-markdown h3 {
+  margin: 0.8em 0 0.4em;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.fa-markdown h1:first-child,
+.fa-markdown h2:first-child,
+.fa-markdown h3:first-child {
+  margin-top: 0;
+}
+.fa-markdown h1 {
+  font-size: 1.15em;
+}
+.fa-markdown h2 {
+  font-size: 1.08em;
+}
+.fa-markdown h3 {
+  font-size: 1.02em;
+}
+.fa-markdown strong {
+  font-weight: 700;
+}
+.fa-markdown code {
+  border-radius: 4px;
+  background: var(--color-surface-2);
+  padding: 0.1em 0.35em;
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+.fa-markdown pre {
+  overflow-x: auto;
+  border-radius: 8px;
+  background: var(--color-surface-2);
+  padding: 0.6em 0.8em;
+  margin: 0 0 0.6em;
+}
+.fa-markdown pre code {
+  background: none;
+  padding: 0;
+}
+.fa-markdown a {
+  color: var(--color-accent);
+  text-decoration: underline;
+}
+.fa-markdown blockquote {
+  margin: 0 0 0.6em;
+  padding-left: 0.8em;
+  border-left: 2px solid var(--color-border);
+  color: var(--color-muted);
 }

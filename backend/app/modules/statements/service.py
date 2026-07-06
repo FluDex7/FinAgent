@@ -6,7 +6,12 @@ from pathlib import Path
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
-from app.core.exceptions import PathTraversalError, StatementNotFoundError, StatementParseError
+from app.core.exceptions import (
+    PathTraversalError,
+    StatementNameConflictError,
+    StatementNotFoundError,
+    StatementParseError,
+)
 from app.modules.categorization.service import CategorizationService
 from app.modules.statements.models import Statement, StatementFormat, StatementStatus
 from app.modules.statements.parsers.csv_parser import parse_csv
@@ -190,6 +195,24 @@ class StatementsService:
     ) -> list[TransactionOut]:
         await self._get_or_404(statement_id)
         return await self.transactions.list_by_statement(statement_id, limit, offset)
+
+    async def rename(self, statement_id: uuid.UUID, new_name: str) -> StatementOut:
+        statement = await self._get_or_404(statement_id)
+        ext = Path(statement.filename).suffix
+        new_filename = f"{new_name}{ext}"
+        if new_filename == statement.filename:
+            return StatementOut.model_validate(statement)
+
+        directory = self.root / statement.folder_path
+        old_path = directory / statement.filename
+        new_path = directory / new_filename
+        if new_path.exists():
+            raise StatementNameConflictError(f"Файл «{new_filename}» уже существует.")
+
+        if old_path.exists():
+            old_path.rename(new_path)
+        await self.repo.rename(statement, new_filename)
+        return StatementOut.model_validate(statement)
 
     async def delete(self, statement_id: uuid.UUID) -> None:
         statement = await self._get_or_404(statement_id)

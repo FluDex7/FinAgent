@@ -1,4 +1,4 @@
-import { del, get, postForm } from './client'
+import { del, get, patch, postForm } from './client'
 import type { DocFolderOut, StatementOut, TransactionOut } from './types'
 
 export function getDocumentsTree(path?: string): Promise<DocFolderOut[]> {
@@ -27,4 +27,8 @@ export function getStatementTransactions(
 
 export function deleteStatement(statementId: string): Promise<void> {
   return del<void>(`/statements/${statementId}`)
+}
+
+export function renameStatement(statementId: string, name: string): Promise<StatementOut> {
+  return patch<StatementOut>(`/statements/${statementId}`, { name })
 }
