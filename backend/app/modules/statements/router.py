@@ -4,7 +4,7 @@ from typing import Annotated
 from fastapi import APIRouter, Form, UploadFile
 
 from app.modules.statements.dependencies import StatementsServiceDep
-from app.modules.statements.schemas import DocFolderOut, StatementOut
+from app.modules.statements.schemas import DocFolderOut, StatementOut, StatementRename
 from app.modules.transactions.schemas import TransactionOut
 
 router = APIRouter(tags=["statements"])
@@ -38,6 +38,13 @@ async def get_statement_transactions(
     offset: int = 0,
 ) -> list[TransactionOut]:
     return await service.list_transactions(statement_id, limit=limit, offset=offset)
+
+
+@router.patch("/statements/{statement_id}", response_model=StatementOut)
+async def rename_statement(
+    statement_id: uuid.UUID, body: StatementRename, service: StatementsServiceDep
+) -> StatementOut:
+    return await service.rename(statement_id, body.name)
 
 
 @router.delete("/statements/{statement_id}", status_code=204)

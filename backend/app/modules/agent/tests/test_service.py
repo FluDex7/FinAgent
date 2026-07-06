@@ -160,6 +160,20 @@ async def test_auto_resolves_scope_when_no_refs_given(monkeypatch, agent_service
     assert events[1]["data"] == {"files": ["2025"], "auto": True}
 
 
+async def test_suppresses_scope_event_when_resolution_is_empty(monkeypatch, agent_service):
+    # A short follow-up like "давай" resolves to no files — showing an empty
+    # "scope" banner in that case is confusing, so no event should be emitted.
+    await agent_service.statements.upload(filename="q1.csv", folder="2025", content=CSV_CONTENT)
+
+    scope_json = AIMessage(content='{"files": [], "explanation": ""}')
+    final = AIMessage(content="Вот график.")
+    _use_fake_model(monkeypatch, [scope_json, final])
+
+    events = [e async for e in agent_service.stream_chat(None, "давай", [])]
+
+    assert "scope" not in [e["event"] for e in events]
+
+
 async def test_skips_resolve_scope_when_tree_is_empty(monkeypatch, agent_service):
     _use_fake_model(monkeypatch, [AIMessage(content="Пока нет ни одной выписки.")])
 

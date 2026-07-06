@@ -21,6 +21,10 @@ class StatementNotFoundError(AppError):
     status_code = 404
 
 
+class StatementNameConflictError(AppError):
+    status_code = 409
+
+
 class SqlValidationError(AppError):
     pass
 

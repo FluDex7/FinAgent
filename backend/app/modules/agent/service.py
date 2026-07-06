@@ -132,12 +132,13 @@ class AgentService:
                         yield {"event": "token", "data": {"text": clarification}}
                         yield {"event": "done", "data": {}}
                         return
-                    scope_auto = True
                     scope_files = resolution.files
-                    statement_ids = await self.statements.resolve_paths_to_statement_ids(
-                        scope_files
-                    )
-                    yield {"event": "scope", "data": {"files": scope_files, "auto": True}}
+                    if scope_files:
+                        scope_auto = True
+                        statement_ids = await self.statements.resolve_paths_to_statement_ids(
+                            scope_files
+                        )
+                        yield {"event": "scope", "data": {"files": scope_files, "auto": True}}
 
             system_prompt = SYSTEM_PROMPT
             if statement_ids:

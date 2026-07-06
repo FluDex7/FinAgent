@@ -19,6 +19,10 @@ class StatementOut(CamelModel):
     created_at: datetime
 
 
+class StatementRename(CamelModel):
+    name: str
+
+
 class DocFileOut(CamelModel):
     id: str
     name: str

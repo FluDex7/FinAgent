@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import ReactMarkdown from 'react-markdown'
 import { useAppStore } from '../store/useAppStore'
 import type { BlockOut, MessageOut, ToolCallOut } from '../api/types'
 import { BlockRenderer } from './blocks/BlockRenderer'
@@ -188,8 +189,8 @@ function AgentBubble({ data }: { data: AgentViewData }) {
         {data.tools && data.tools.length > 0 && <ToolTimeline tools={data.tools} />}
 
         {data.text && (
-          <div className="whitespace-pre-wrap text-[14.5px] leading-relaxed" style={{ color: 'var(--color-ink)' }}>
-            {data.text}
+          <div className="fa-markdown text-[14.5px] leading-relaxed" style={{ color: 'var(--color-ink)' }}>
+            <ReactMarkdown>{data.text}</ReactMarkdown>
             {data.isStreaming && <span className="animate-fa-blink">▍</span>}
           </div>
         )}

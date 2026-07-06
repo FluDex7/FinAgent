@@ -130,6 +130,33 @@ async def test_delete_removes_file_and_db_row(service: StatementsService):
         await service.get(statement.id)
 
 
+async def test_rename_renames_file_on_disk_and_db_row(service: StatementsService):
+    statement = await service.upload(filename="q1.csv", folder="2025", content=CSV_CONTENT)
+
+    renamed = await service.rename(statement.id, "первый квартал")
+
+    assert renamed.filename == "первый квартал.csv"
+    assert (service.root / "2025" / "первый квартал.csv").exists()
+    assert not (service.root / "2025" / "q1.csv").exists()
+
+
+async def test_rename_rejects_name_collision(service: StatementsService):
+    from app.core.exceptions import StatementNameConflictError
+
+    await service.upload(filename="q1.csv", folder="2025", content=CSV_CONTENT)
+    q2 = await service.upload(filename="q2.csv", folder="2025", content=CSV_CONTENT)
+
+    with pytest.raises(StatementNameConflictError):
+        await service.rename(q2.id, "q1")
+
+
+async def test_rename_unknown_statement_raises(service: StatementsService):
+    import uuid
+
+    with pytest.raises(StatementNotFoundError):
+        await service.rename(uuid.uuid4(), "new name")
+
+
 async def test_resolve_paths_whole_folder_returns_all_parsed_files(service: StatementsService):
     q1 = await service.upload(filename="q1.csv", folder="2025", content=CSV_CONTENT)
     q2 = await service.upload(filename="q2.csv", folder="2025", content=CSV_CONTENT)
