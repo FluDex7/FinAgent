@@ -45,13 +45,14 @@ def _title_from_message(message: str) -> str:
 
 
 def _language_hint(message: str) -> str:
-    """Per-request answer-language directive.
+    """Per-request answer-language directive, injected as a trailing reminder.
 
     The system prompt is written in Russian, and a generic "mirror the user's
     language" rule buried in it loses to that: gpt-4o-mini kept answering English
-    questions in Russian. Deciding the language here (Cyrillic → Russian,
-    anything else → the user's own language) and stating it explicitly is
-    deterministic and actually sticks.
+    questions in Russian — especially after a tool returned a screenful of Russian
+    transaction data. Deciding the language here (Cyrillic → Russian, anything
+    else → the user's own language) is deterministic, and the graph re-injects it
+    as the last message before every generation so it wins on recency.
     """
     if re.search(r"[а-яё]", message, re.IGNORECASE):
         return "Пользователь пишет по-русски — отвечай по-русски."
@@ -188,7 +189,6 @@ class AgentService:
             prompt_parts = [
                 SYSTEM_PROMPT,
                 f"Сегодняшняя дата: {date.today().isoformat()}.",
-                _language_hint(message),
             ]
             if statement_ids:
                 ids_note = ", ".join(statement_ids)
@@ -200,7 +200,14 @@ class AgentService:
             system_prompt = "\n\n".join(prompt_parts)
 
             tools = build_tools(self.transactions, self.statements, chat_model, self.settings)
-            graph = build_agent_graph(chat_model, tools, system_prompt=system_prompt)
+            graph = build_agent_graph(
+                chat_model,
+                tools,
+                system_prompt=system_prompt,
+                # Re-injected right before every generation: a language directive at
+                # the top of the prompt got drowned out by Russian tool output.
+                reminder=_language_hint(message),
+            )
 
             inputs = {"messages": [*history, HumanMessage(content=message)]}
             # Some models interleave pre-tool-call narration (or even a leaked raw SQL

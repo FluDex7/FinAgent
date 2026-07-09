@@ -326,9 +326,11 @@ async def test_resolved_statement_ids_are_injected_into_system_prompt(monkeypatc
     captured: dict = {}
     from app.modules.agent.graph import build_agent_graph as real_build_agent_graph
 
-    def spy_build(chat_model, tools, system_prompt=""):
+    def spy_build(chat_model, tools, system_prompt="", reminder=None):
         captured["system_prompt"] = system_prompt
-        return real_build_agent_graph(chat_model, tools, system_prompt=system_prompt)
+        return real_build_agent_graph(
+            chat_model, tools, system_prompt=system_prompt, reminder=reminder
+        )
 
     monkeypatch.setattr(service_module, "build_agent_graph", spy_build)
 
@@ -343,25 +345,28 @@ async def test_resolved_statement_ids_are_injected_into_system_prompt(monkeypatc
     assert date.today().isoformat() in captured["system_prompt"]
 
 
-async def test_system_prompt_carries_explicit_answer_language(monkeypatch, agent_service):
+async def test_answer_language_reminder_matches_message_language(monkeypatch, agent_service):
     # A generic "mirror the user's language" rule inside the all-Russian system
     # prompt wasn't enough — English questions still got Russian answers. The
-    # service now decides the language per request and states it outright.
+    # service now decides the language per request and passes it as the graph's
+    # trailing reminder so it outweighs Russian tool output on recency.
     captured: dict = {}
     from app.modules.agent.graph import build_agent_graph as real_build_agent_graph
 
-    def spy_build(chat_model, tools, system_prompt=""):
-        captured["system_prompt"] = system_prompt
-        return real_build_agent_graph(chat_model, tools, system_prompt=system_prompt)
+    def spy_build(chat_model, tools, system_prompt="", reminder=None):
+        captured["reminder"] = reminder
+        return real_build_agent_graph(
+            chat_model, tools, system_prompt=system_prompt, reminder=reminder
+        )
 
     monkeypatch.setattr(service_module, "build_agent_graph", spy_build)
 
     _use_fake_model(monkeypatch, [AIMessage(content="Sure, here it is.")])
     events = [e async for e in agent_service.stream_chat(None, "What am I spending on?", [])]
     assert events[-1]["event"] == "done"
-    assert "NOT in Russian" in captured["system_prompt"]
+    assert "NOT in Russian" in captured["reminder"]
 
     _use_fake_model(monkeypatch, [AIMessage(content="Вот ответ.")])
     events = [e async for e in agent_service.stream_chat(None, "на что я трачу?", [])]
     assert events[-1]["event"] == "done"
-    assert "отвечай по-русски" in captured["system_prompt"]
+    assert "отвечай по-русски" in captured["reminder"]

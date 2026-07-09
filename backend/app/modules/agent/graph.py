@@ -20,12 +20,20 @@ def _serialize(value: Any) -> str:
 
 
 def build_agent_graph(
-    chat_model: BaseChatModel, tools: list[BaseTool], system_prompt: str = SYSTEM_PROMPT
+    chat_model: BaseChatModel,
+    tools: list[BaseTool],
+    system_prompt: str = SYSTEM_PROMPT,
+    reminder: str | None = None,
 ) -> CompiledStateGraph:
     """The core loop: model -> tools -> model, looping until the model stops calling tools.
 
     Tool errors are caught here and fed back as a ToolMessage so the model can react
     instead of the whole request blowing up.
+
+    `reminder` is re-injected as the LAST message before every generation. Instructions
+    at the top of the system prompt lose to whatever came most recently — e.g. the
+    answer-language directive was ignored once a tool returned a screenful of Russian
+    transaction data — so recency-sensitive directives go here, not in system_prompt.
     """
     tools_by_name = {t.name: t for t in tools}
     model_with_tools = chat_model.bind_tools(tools) if tools else chat_model
@@ -34,6 +42,8 @@ def build_agent_graph(
         messages = state["messages"]
         if not messages or not isinstance(messages[0], SystemMessage):
             messages = [SystemMessage(content=system_prompt), *messages]
+        if reminder:
+            messages = [*messages, SystemMessage(content=reminder)]
         response = await model_with_tools.ainvoke(messages)
         return {"messages": [response]}
 

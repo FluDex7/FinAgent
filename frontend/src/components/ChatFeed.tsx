@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { useT } from '../hooks/useT'
 import { useAppStore } from '../store/useAppStore'
 import type { BlockOut, MessageOut, ToolCallOut } from '../api/types'
@@ -194,7 +195,7 @@ function AgentBubble({ data }: { data: AgentViewData }) {
 
         {data.text && (
           <div className="fa-markdown text-[14.5px] leading-relaxed" style={{ color: 'var(--color-ink)' }}>
-            <ReactMarkdown>{data.text}</ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{data.text}</ReactMarkdown>
             {data.isStreaming && <span className="animate-fa-blink">▍</span>}
           </div>
         )}
