@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from typing import Literal
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -58,18 +59,18 @@ class HealthResponse(CamelModel):
     statements_dir: ServiceStatus
 
 
-def _find(results: list[CheckResult], name: str) -> CheckResult:
-    return next(r for r in results if r.name == name)
+def _find(results: list[CheckResult], key: str) -> CheckResult:
+    return next(r for r in results if r.key == key)
 
 
 @app.get("/health", response_model=HealthResponse, response_model_by_alias=True)
-async def health() -> HealthResponse:
-    results = await run_health_checks(engine, settings)
-    llm_result = _find(results, "LLM-провайдер")
-    postgres_result = _find(results, "PostgreSQL")
-    qdrant_result = _find(results, "Qdrant")
-    tesseract_result = _find(results, "Tesseract OCR")
-    statements_result = _find(results, "Папка выписок")
+async def health(lang: Literal["ru", "en"] = "ru") -> HealthResponse:
+    results = await run_health_checks(engine, settings, lang)
+    llm_result = _find(results, "llm")
+    postgres_result = _find(results, "postgres")
+    qdrant_result = _find(results, "qdrant")
+    tesseract_result = _find(results, "tesseract")
+    statements_result = _find(results, "statements_dir")
     model = settings.openai_model if settings.llm_provider == "openai" else settings.ollama_model
 
     return HealthResponse(

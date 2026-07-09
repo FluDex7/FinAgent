@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent, KeyboardEvent } from 'react'
+import { useT } from '../hooks/useT'
 import { useAppStore } from '../store/useAppStore'
 import { AtPicker } from './AtPicker'
 import type { Ref } from '../api/types'
@@ -51,6 +52,7 @@ export function Composer({ onOpenUpload }: ComposerProps) {
   const isStreaming = useAppStore((s) => s.isStreaming)
   const sendMessage = useAppStore((s) => s.sendMessage)
   const stopStreaming = useAppStore((s) => s.stopStreaming)
+  const t = useT()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const canSend = input.trim().length > 0 && !isStreaming
@@ -136,7 +138,7 @@ export function Composer({ onOpenUpload }: ComposerProps) {
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             rows={1}
-            placeholder="Спросите про свои траты…"
+            placeholder={t('composerPlaceholder')}
             className="max-h-[200px] w-full resize-none overflow-y-auto border-0 bg-transparent py-1.5 text-[14.5px] leading-relaxed outline-none"
             style={{ color: 'var(--color-ink)' }}
           />
@@ -161,7 +163,7 @@ export function Composer({ onOpenUpload }: ComposerProps) {
               <UploadIcon />
             </button>
             <span className="ml-auto text-[11px]" style={{ color: 'var(--color-faint)' }}>
-              Enter — отправить · Shift+Enter — перенос
+              {t('composerHint')}
             </span>
             {isStreaming ? (
               <button

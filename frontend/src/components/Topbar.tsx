@@ -1,3 +1,4 @@
+import { useT } from '../hooks/useT'
 import { useAppStore } from '../store/useAppStore'
 
 interface TopbarProps {
@@ -24,8 +25,9 @@ export function Topbar({ onOpenSettings }: TopbarProps) {
   const activeChatId = useAppStore((s) => s.activeChatId)
   const chats = useAppStore((s) => s.chats)
 
+  const t = useT()
   const activeChat = chats.find((c) => c.id === activeChatId)
-  const title = activeChat?.title ?? 'Новый чат'
+  const title = activeChat?.title ?? t('newChat')
 
   return (
     <header

@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useEscapeKey } from '../hooks/useEscapeKey'
+import { useT } from '../hooks/useT'
 import { useAppStore } from '../store/useAppStore'
 import type { DocFolderOut, Ref } from '../api/types'
+import type { TranslateParams, TranslationKey } from '../i18n'
 
 interface AtItem {
   path: string
@@ -9,15 +11,17 @@ interface AtItem {
   hint: string
 }
 
-function flattenDocuments(tree: DocFolderOut[]): AtItem[] {
+type Translate = (key: TranslationKey, params?: TranslateParams) => string
+
+function flattenDocuments(tree: DocFolderOut[], t: Translate): AtItem[] {
   const items: AtItem[] = []
   for (const folder of tree) {
     if (folder.name) {
-      items.push({ path: folder.name, kind: 'folder', hint: `${folder.files.length} файлов` })
+      items.push({ path: folder.name, kind: 'folder', hint: t('filesCount', { n: folder.files.length }) })
     }
     for (const file of folder.files) {
       const path = folder.name ? `${folder.name}/${file.name}` : file.name
-      const hint = file.status === 'parsed' ? `${file.txCount} операций` : 'не распознано'
+      const hint = file.status === 'parsed' ? t('txCount', { n: file.txCount }) : t('notParsed')
       items.push({ path, kind: 'file', hint })
     }
   }
@@ -53,10 +57,11 @@ interface AtPickerProps {
 export function AtPicker({ onPick, onClose }: AtPickerProps) {
   const documentsTree = useAppStore((s) => s.documentsTree)
   const [query, setQuery] = useState('')
+  const t = useT()
   const containerRef = useRef<HTMLDivElement>(null)
   useEscapeKey(onClose)
 
-  const items = useMemo(() => flattenDocuments(documentsTree), [documentsTree])
+  const items = useMemo(() => flattenDocuments(documentsTree, t), [documentsTree, t])
   const filtered = items.filter((item) => item.path.toLowerCase().includes(query.toLowerCase()))
 
   useEffect(() => {
@@ -83,7 +88,7 @@ export function AtPicker({ onPick, onClose }: AtPickerProps) {
           autoFocus
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="файл или папка…"
+          placeholder={t('atPlaceholder')}
           className="flex-1 border-0 bg-transparent text-[13px] outline-none"
           style={{ color: 'var(--color-ink)' }}
         />
@@ -91,7 +96,7 @@ export function AtPicker({ onPick, onClose }: AtPickerProps) {
       <div className="max-h-[230px] overflow-y-auto p-1.5">
         {filtered.length === 0 && (
           <div className="px-2.5 py-3 text-center text-[12.5px]" style={{ color: 'var(--color-faint)' }}>
-            Ничего не найдено
+            {t('nothingFound')}
           </div>
         )}
         {filtered.map((item) => (

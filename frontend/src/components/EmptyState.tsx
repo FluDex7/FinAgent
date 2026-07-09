@@ -1,11 +1,7 @@
+import { useT } from '../hooks/useT'
 import { useAppStore } from '../store/useAppStore'
 
-const STARTERS = [
-  'На что я трачу больше всего?',
-  'Сравни март и февраль',
-  'Найди подписки',
-  'Крупные разовые траты',
-]
+const STARTER_KEYS = ['starter1', 'starter2', 'starter3', 'starter4'] as const
 
 interface EmptyStateProps {
   onOpenUpload: () => void
@@ -13,6 +9,7 @@ interface EmptyStateProps {
 
 export function EmptyState({ onOpenUpload }: EmptyStateProps) {
   const sendMessage = useAppStore((s) => s.sendMessage)
+  const t = useT()
 
   return (
     <div className="flex flex-col items-center pt-9 text-center">
@@ -26,10 +23,10 @@ export function EmptyState({ onOpenUpload }: EmptyStateProps) {
       </div>
 
       <h1 className="mb-1.5 mt-5 text-2xl font-bold tracking-tight" style={{ color: 'var(--color-ink)' }}>
-        О чём спросить свои выписки?
+        {t('emptyTitle')}
       </h1>
       <p className="mb-6 max-w-[440px] text-sm leading-relaxed" style={{ color: 'var(--color-muted)' }}>
-        Загрузите банковскую выписку — PDF или CSV — и задайте вопрос обычным языком. Всё считается на вашей машине.
+        {t('emptySubtitle')}
       </p>
 
       <button
@@ -43,30 +40,30 @@ export function EmptyState({ onOpenUpload }: EmptyStateProps) {
           <path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
         </svg>
         <span className="text-sm font-semibold" style={{ color: 'var(--color-ink)' }}>
-          Перетащите выписку сюда
+          {t('dropStatementHere')}
         </span>
         <span className="text-[12.5px]" style={{ color: 'var(--color-muted)' }}>
-          или нажмите, чтобы выбрать файл · PDF, CSV
+          {t('orClickToChoose')}
         </span>
         <span className="mt-0.5 inline-flex items-center gap-1.5 text-[11.5px]" style={{ color: 'var(--color-faint)' }}>
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
             <rect x="5" y="11" width="14" height="9" rx="2" stroke="currentColor" strokeWidth="2" />
             <path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="currentColor" strokeWidth="2" />
           </svg>
-          всё обрабатывается локально, ничего не уходит наружу
+          {t('processedLocally')}
         </span>
       </button>
 
       <div className="mt-6 flex max-w-[520px] flex-wrap justify-center gap-2.5">
-        {STARTERS.map((text) => (
+        {STARTER_KEYS.map((key) => (
           <button
-            key={text}
+            key={key}
             type="button"
-            onClick={() => sendMessage(text)}
+            onClick={() => sendMessage(t(key))}
             className="rounded-full border px-3.5 py-2 text-[13px]"
             style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)', color: 'var(--color-ink)' }}
           >
-            {text}
+            {t(key)}
           </button>
         ))}
       </div>

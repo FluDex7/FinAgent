@@ -19,6 +19,7 @@ const CLOUDS = [
 
 function App() {
   const theme = useAppStore((s) => s.theme)
+  const language = useAppStore((s) => s.language)
   const loadDocuments = useAppStore((s) => s.loadDocuments)
   const loadChats = useAppStore((s) => s.loadChats)
   const loadHealth = useAppStore((s) => s.loadHealth)
@@ -34,6 +35,10 @@ function App() {
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
   }, [theme])
+
+  useEffect(() => {
+    document.documentElement.lang = language
+  }, [language])
 
   useEffect(() => {
     void loadDocuments()

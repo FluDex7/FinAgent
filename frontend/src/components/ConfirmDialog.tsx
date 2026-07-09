@@ -1,4 +1,5 @@
 import { useEscapeKey } from '../hooks/useEscapeKey'
+import { useT } from '../hooks/useT'
 
 interface ConfirmDialogProps {
   title: string
@@ -8,7 +9,8 @@ interface ConfirmDialogProps {
   onCancel: () => void
 }
 
-export function ConfirmDialog({ title, message, confirmLabel = 'Удалить', onConfirm, onCancel }: ConfirmDialogProps) {
+export function ConfirmDialog({ title, message, confirmLabel, onConfirm, onCancel }: ConfirmDialogProps) {
+  const t = useT()
   useEscapeKey(onCancel)
 
   return (
@@ -35,7 +37,7 @@ export function ConfirmDialog({ title, message, confirmLabel = 'Удалить',
             className="rounded-[9px] border px-4 py-2 text-[13px] font-medium"
             style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)', color: 'var(--color-ink)' }}
           >
-            Отмена
+            {t('cancel')}
           </button>
           <button
             type="button"
@@ -43,7 +45,7 @@ export function ConfirmDialog({ title, message, confirmLabel = 'Удалить',
             className="rounded-[9px] px-4 py-2 text-[13px] font-semibold text-white"
             style={{ background: 'var(--color-neg)' }}
           >
-            {confirmLabel}
+            {confirmLabel ?? t('delete')}
           </button>
         </div>
       </div>

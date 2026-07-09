@@ -112,3 +112,22 @@ def test_check_web_search_ok_when_configured():
     result = check_web_search(settings)
     assert result.ok is True
     assert "Tavily" in result.detail
+
+
+async def test_checks_translate_to_english():
+    # The /health endpoint passes the UI language through — every user-visible
+    # detail/hint must actually switch, not just fall back to the ru default.
+    settings = make_settings(llm_provider="openai", openai_api_key=None)
+    llm = await check_llm_provider(settings, lang="en")
+    assert llm.ok is False
+    assert "OPENAI_API_KEY is empty" in llm.detail
+    assert llm.hint is not None and "switch to Ollama" in llm.hint
+
+    web = check_web_search(make_settings(tavily_api_key=None), lang="en")
+    assert "disabled" in web.detail
+
+
+def test_check_results_carry_stable_keys():
+    # main.py looks results up by key, not by (localized) display name.
+    result = check_web_search(make_settings(tavily_api_key=None), lang="en")
+    assert result.key == "web_search"

@@ -1,4 +1,5 @@
 import { useEscapeKey } from '../../hooks/useEscapeKey'
+import { useT } from '../../hooks/useT'
 import { useAppStore } from '../../store/useAppStore'
 
 interface SettingsModalProps {
@@ -17,6 +18,9 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
   const health = useAppStore((s) => s.health)
   const theme = useAppStore((s) => s.theme)
   const setTheme = useAppStore((s) => s.setTheme)
+  const language = useAppStore((s) => s.language)
+  const setLanguage = useAppStore((s) => s.setLanguage)
+  const t = useT()
   useEscapeKey(onClose)
 
   return (
@@ -35,7 +39,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
           style={{ borderColor: 'var(--color-border)', background: 'var(--color-sheet)' }}
         >
           <span className="text-[15px] font-semibold" style={{ color: 'var(--color-ink)' }}>
-            Настройки
+            {t('settings')}
           </span>
           <button
             type="button"
@@ -50,7 +54,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
         <div className="flex flex-col gap-6 px-[22px] py-5">
           <div>
             <div className="mb-2.5 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-faint)' }}>
-              Провайдер LLM
+              {t('llmProvider')}
             </div>
             <div className="flex items-center gap-2.5 rounded-[10px] border px-3 py-2.5" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}>
               <span
@@ -68,13 +72,13 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
               </span>
             </div>
             <p className="mt-2 text-[11.5px]" style={{ color: 'var(--color-faint)' }}>
-              Провайдер задаётся переменными окружения на сервере (LLM_PROVIDER, OPENAI_API_KEY / OLLAMA_HOST).
+              {t('llmProviderNote')}
             </p>
           </div>
 
           <div>
             <div className="mb-2.5 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-faint)' }}>
-              Тема
+              {t('theme')}
             </div>
             <div className="flex max-w-[280px] gap-2">
               <button
@@ -87,7 +91,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                   background: theme === 'light' ? 'var(--color-accent-soft)' : 'var(--color-surface)',
                 }}
               >
-                ☀ Светлая
+                {t('themeLight')}
               </button>
               <button
                 type="button"
@@ -99,8 +103,36 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
                   background: theme === 'dark' ? 'var(--color-accent-soft)' : 'var(--color-surface)',
                 }}
               >
-                ☾ Тёмная
+                {t('themeDark')}
               </button>
+            </div>
+          </div>
+
+          <div>
+            <div className="mb-2.5 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-faint)' }}>
+              {t('language')}
+            </div>
+            <div className="flex max-w-[280px] gap-2">
+              {(
+                [
+                  ['en', 'English'],
+                  ['ru', 'Русский'],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setLanguage(value)}
+                  className="flex-1 rounded-[10px] border px-3 py-2 text-[13px] font-medium"
+                  style={{
+                    borderColor: language === value ? 'var(--color-accent)' : 'var(--color-border)',
+                    color: language === value ? 'var(--color-accent)' : 'var(--color-muted)',
+                    background: language === value ? 'var(--color-accent-soft)' : 'var(--color-surface)',
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
           </div>
         </div>

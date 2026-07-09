@@ -29,6 +29,7 @@ Upload a PDF or CSV, then ask questions in plain language — *"what am I spendi
 - **RAG knowledge base** about bank statement formats and categorization rules (LlamaIndex + Qdrant).
 - **MLflow tracing** of every agent run — fully local, no external service.
 - **Optional web search** (Tavily) for things no local data can answer — exchange rates, current events. Off by default; the agent is instructed to never send it any of your financial data.
+- **English / Russian UI** — switchable in Settings, English by default. The agent itself replies in whatever language you ask in.
 - Light/dark theme. Zero telemetry.
 
 ## Quick Start
