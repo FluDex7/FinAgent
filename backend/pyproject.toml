@@ -38,6 +38,7 @@ dev = [
     "pytest-asyncio>=0.24",
     "ruff>=0.7",
     "mypy>=1.13",
+    "ragas>=0.4.3,<0.5",
 ]
 
 [tool.ruff]

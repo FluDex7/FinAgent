@@ -133,6 +133,20 @@ uv run mlflow ui --backend-store-uri sqlite:///./mlflow.db
 
 Open http://localhost:5000 to see the call tree for each chat turn: `agent → chat model → tools → plot_chart → agent → ...`.
 
+## Agent Quality Evals (Ragas)
+
+A dev-only harness measures the agent's answer quality against a golden dataset — 14 questions (RU + EN) over two fixture statements with hand-verified sums. Each case is scored with deterministic checks (right tools called, answer language, no leaked SQL / markdown tables, chart present where expected) plus two [Ragas](https://docs.ragas.io) LLM-judge metrics: **faithfulness** (is the answer grounded in the tool outputs) and **factual correctness** (does it match the golden reference).
+
+```bash
+cd backend
+uv run python -m evals                 # full run — needs a working LLM (same .env as the app)
+uv run python -m evals --skip-judge    # deterministic checks only, no judge calls
+uv run python -m evals --only subscriptions --judge-model gpt-4o
+```
+
+Everything is sandboxed (temp files, one rolled-back DB transaction), and results land in MLflow under the `finagent-evals` experiment — so after changing a prompt or a tool you can see whether quality actually moved, per commit, instead of eyeballing chats.
+
+
 ## Backup & Restore
 
 Your actual data lives in two places: the Postgres database (categories, merchant rules, transactions, chat history) and the `data/` folder (raw statement files). Qdrant's RAG index rebuilds itself from static knowledge files on first use — nothing to back up there.
@@ -165,6 +179,7 @@ FinAgent/
 │   │       ├── agent/           LangGraph graph, SSE streaming, chats
 │   │       └── tools/           sql_query, plot_chart, compare_periods, resolve_scope, rag_lookup, read_document
 │   ├── migrations/       Alembic
+│   ├── evals/            dev-only agent quality evals (Ragas + MLflow, golden dataset)
 │   └── Dockerfile
 └── frontend/
     ├── src/
