@@ -16,7 +16,7 @@ def client(monkeypatch, tmp_path):
     monkeypatch.setattr(service_module, "get_chat_model", lambda settings: fake)
 
     def override_settings() -> Settings:
-        return Settings(statements_dir=str(tmp_path))
+        return Settings(statements_dir=str(tmp_path), agent_self_check=False)
 
     app.dependency_overrides[get_settings] = override_settings
     with TestClient(app) as test_client:

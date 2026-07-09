@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
 from app.core.exceptions import AppError
-from app.modules.agent.graph import build_agent_graph
+from app.modules.agent.graph import build_agent_graph, parse_critic_verdict
 from app.modules.agent.models import Chat, MessageRole
 from app.modules.agent.prompts import SYSTEM_PROMPT
 from app.modules.agent.registry import build_tools
@@ -207,6 +207,7 @@ class AgentService:
                 # Re-injected right before every generation: a language directive at
                 # the top of the prompt got drowned out by Russian tool output.
                 reminder=_language_hint(message),
+                self_check=self.settings.agent_self_check,
             )
 
             inputs = {"messages": [*history, HumanMessage(content=message)]}
@@ -214,12 +215,17 @@ class AgentService:
             # query) into the same turn's content as a tool call. Buffer each model
             # turn's streamed text by run_id and only forward it once on_chat_model_end
             # confirms that turn made no tool calls — otherwise it's discarded, never
-            # shown to the user or persisted.
+            # shown to the user or persisted. With the critic in the graph there can be
+            # TWO tool-free turns (draft + revision), so the text is only emitted after
+            # the whole graph finishes — the last tool-free agent turn wins.
             pending_text: dict[str, str] = {}
             async for event in graph.astream_events(inputs, version="v2"):
                 kind = event["event"]
+                node = (event.get("metadata") or {}).get("langgraph_node")
 
                 if kind == "on_chat_model_stream":
+                    if node != "agent":
+                        continue
                     run_id = event["run_id"]
                     chunk = event["data"]["chunk"]
                     if chunk.content:
@@ -227,11 +233,37 @@ class AgentService:
 
                 elif kind == "on_chat_model_end":
                     output = event["data"]["output"]
+                    if node == "critic":
+                        # Surface the self-check as a pseudo-tool badge so the user
+                        # sees the agent reviewing its own answer (and the reason
+                        # when it sends the answer back).
+                        content = (
+                            output.content
+                            if isinstance(output.content, str)
+                            else str(output.content)
+                        )
+                        ok, fix = parse_critic_verdict(content)
+                        call_id = str(event["run_id"])
+                        verdict = "OK" if ok else fix
+                        tool_calls.append(
+                            {
+                                "id": call_id,
+                                "name": "self_check",
+                                "status": "done",
+                                "detail": verdict,
+                            }
+                        )
+                        yield {"event": "tool_start", "data": {"id": call_id, "name": "self_check"}}
+                        yield {
+                            "event": "tool_end",
+                            "data": {"id": call_id, "name": "self_check", "detail": verdict},
+                        }
+                        continue
+                    if node != "agent":
+                        continue
                     pending_text.pop(event["run_id"], "")
                     if not getattr(output, "tool_calls", None):
                         final_text = _strip_leaked_sql(output.content)
-                        if final_text:
-                            yield {"event": "token", "data": {"text": final_text}}
 
                 elif kind == "on_tool_start":
                     call_id = str(event["run_id"])
@@ -253,6 +285,9 @@ class AgentService:
                     if event["name"] == "plot_chart" and isinstance(output, dict):
                         blocks.append(output)
                         yield {"event": "block", "data": output}
+
+            if final_text:
+                yield {"event": "token", "data": {"text": final_text}}
         except Exception as exc:  # noqa: BLE001 - surfaced to the client, not a crash
             yield {"event": "error", "data": {"message": str(exc)}}
             return

@@ -30,6 +30,7 @@ Upload a PDF or CSV, then ask questions in plain language — *"what am I spendi
 - **MLflow tracing** of every agent run — fully local, no external service.
 - **Optional web search** (Tavily) for things no local data can answer — exchange rates, current events. Off by default; the agent is instructed to never send it any of your financial data.
 - **English / Russian UI** — switchable in Settings, English by default. The agent itself replies in whatever language you ask in.
+- **Self-check pass** — a critic node reviews every answer (right language, chart + period on broad questions, transfers not passed off as spending, no leaked SQL) and sends it back for one revision when it fails. Visible in the chat as a `self_check` badge; disable with `AGENT_SELF_CHECK=false`.
 - Light/dark theme. Zero telemetry.
 
 ## Quick Start
@@ -78,6 +79,7 @@ All variables live in [`.env.example`](.env.example).
 | `STATEMENTS_DIR` | `./data` | Where uploaded statements are stored |
 | `MLFLOW_TRACKING_URI` | `sqlite:///./mlflow.db` | Local MLflow tracking store |
 | `MLFLOW_EXPERIMENT_NAME` | `finagent` | MLflow experiment name |
+| `AGENT_SELF_CHECK` | `true` | Critic pass over every answer before it reaches you (one extra LLM call per message). Set `false` to trade quality for speed/cost. |
 | `TAVILY_API_KEY` | — | Optional. Enables `web_search` for external facts (exchange rates, current events). Get a key at [tavily.com](https://tavily.com) — the only tool that leaves your machine, and only ever for non-financial queries. |
 
 Go fully offline with Ollama:
@@ -131,6 +133,20 @@ uv run mlflow ui --backend-store-uri sqlite:///./mlflow.db
 
 Open http://localhost:5000 to see the call tree for each chat turn: `agent → chat model → tools → plot_chart → agent → ...`.
 
+## Agent Quality Evals (Ragas)
+
+A dev-only harness measures the agent's answer quality against a golden dataset — 14 questions (RU + EN) over two fixture statements with hand-verified sums. Each case is scored with deterministic checks (right tools called, answer language, no leaked SQL / markdown tables, chart present where expected) plus two [Ragas](https://docs.ragas.io) LLM-judge metrics: **faithfulness** (is the answer grounded in the tool outputs) and **factual correctness** (does it match the golden reference).
+
+```bash
+cd backend
+uv run python -m evals                 # full run — needs a working LLM (same .env as the app)
+uv run python -m evals --skip-judge    # deterministic checks only, no judge calls
+uv run python -m evals --only subscriptions --judge-model gpt-4o
+```
+
+Everything is sandboxed (temp files, one rolled-back DB transaction), and results land in MLflow under the `finagent-evals` experiment — so after changing a prompt or a tool you can see whether quality actually moved, per commit, instead of eyeballing chats.
+
+
 ## Backup & Restore
 
 Your actual data lives in two places: the Postgres database (categories, merchant rules, transactions, chat history) and the `data/` folder (raw statement files). Qdrant's RAG index rebuilds itself from static knowledge files on first use — nothing to back up there.
@@ -163,6 +179,7 @@ FinAgent/
 │   │       ├── agent/           LangGraph graph, SSE streaming, chats
 │   │       └── tools/           sql_query, plot_chart, compare_periods, resolve_scope, rag_lookup, read_document
 │   ├── migrations/       Alembic
+│   ├── evals/            dev-only agent quality evals (Ragas + MLflow, golden dataset)
 │   └── Dockerfile
 └── frontend/
     ├── src/

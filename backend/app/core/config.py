@@ -32,6 +32,12 @@ class Settings(BaseSettings):
     # (exchange rates, current events), never with the user's own financial data.
     tavily_api_key: str | None = None
 
+    # Critic pass over every answer before it reaches the user: catches wrong-language
+    # replies, broad questions answered without a chart/period, transfers passed off
+    # as spending, leaked SQL — and sends the answer back for one revision. Costs one
+    # extra LLM call per turn (two when a revision happens); turn off to save it.
+    agent_self_check: bool = True
+
 
 @lru_cache
 def get_settings() -> Settings:

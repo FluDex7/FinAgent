@@ -1,7 +1,7 @@
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_core.tools import tool
 
-from app.modules.agent.graph import build_agent_graph
+from app.modules.agent.graph import build_agent_graph, parse_critic_verdict
 from app.modules.agent.tests.fakes import FakeToolCallingChatModel
 
 
@@ -97,3 +97,53 @@ async def test_graph_reinjects_reminder_as_last_message_on_every_call():
         assert call_messages[-1].content == "Reply in English."
     # ...and it must not leak into the persisted graph state.
     assert all(m.content != "Reply in English." for m in result["messages"])
+
+
+async def test_critic_approval_ends_the_graph():
+    answer = AIMessage(content="Вот разбор трат за июнь: продукты — 42 000.")
+    verdict = AIMessage(content='{"ok": true}')
+    model = FakeToolCallingChatModel(responses=[answer, verdict])
+    graph = build_agent_graph(model, [echo], self_check=True)
+
+    result = await graph.ainvoke({"messages": [HumanMessage(content="на что я трачу?")]})
+
+    assert result["messages"][-1].content == answer.content
+    assert model.responses == []  # both canned responses consumed: answer + verdict
+
+
+async def test_critic_rejection_triggers_exactly_one_revision():
+    draft = AIMessage(content="You spend the most on Transfers.")
+    verdict = AIMessage(content='{"ok": false, "fix": "покажи разбивку по категориям с графиком"}')
+    revised = AIMessage(content="Вот полная разбивка по категориям.")
+    model = FakeToolCallingChatModel(responses=[draft, verdict, revised])
+    graph = build_agent_graph(model, [echo], self_check=True)
+
+    result = await graph.ainvoke({"messages": [HumanMessage(content="на что я трачу?")]})
+
+    # The revision is final — the critic gets one shot, no second review loop.
+    assert result["messages"][-1].content == revised.content
+    assert model.responses == []
+    assert result["critique_rounds"] == 1
+
+
+async def test_critic_disabled_makes_no_extra_model_calls():
+    answer = AIMessage(content="ответ")
+    model = FakeToolCallingChatModel(responses=[answer])
+    graph = build_agent_graph(model, [echo], self_check=False)
+
+    result = await graph.ainvoke({"messages": [HumanMessage(content="hi")]})
+
+    assert result["messages"][-1].content == "ответ"
+    assert model.responses == []
+
+
+def test_parse_critic_verdict_edge_cases():
+    assert parse_critic_verdict('{"ok": true}') == (True, "")
+    assert parse_critic_verdict('```json\n{"ok": false, "fix": "add chart"}\n```') == (
+        False,
+        "add chart",
+    )
+    # A broken critic must fail open, never block a fine answer.
+    assert parse_critic_verdict("не могу решить")[0] is True
+    assert parse_critic_verdict('{"ok": false}')[0] is True  # rejection without a fix is noise
+    assert parse_critic_verdict("[1, 2]")[0] is True
