@@ -336,3 +336,32 @@ async def test_resolved_statement_ids_are_injected_into_system_prompt(monkeypatc
     assert events[-1]["event"] == "done"
 
     assert str(statement.id) in captured["system_prompt"]
+    # The scope note used to REPLACE the date suffix instead of being appended
+    # after it — today's date must survive in the statement_ids branch too.
+    from datetime import date
+
+    assert date.today().isoformat() in captured["system_prompt"]
+
+
+async def test_system_prompt_carries_explicit_answer_language(monkeypatch, agent_service):
+    # A generic "mirror the user's language" rule inside the all-Russian system
+    # prompt wasn't enough — English questions still got Russian answers. The
+    # service now decides the language per request and states it outright.
+    captured: dict = {}
+    from app.modules.agent.graph import build_agent_graph as real_build_agent_graph
+
+    def spy_build(chat_model, tools, system_prompt=""):
+        captured["system_prompt"] = system_prompt
+        return real_build_agent_graph(chat_model, tools, system_prompt=system_prompt)
+
+    monkeypatch.setattr(service_module, "build_agent_graph", spy_build)
+
+    _use_fake_model(monkeypatch, [AIMessage(content="Sure, here it is.")])
+    events = [e async for e in agent_service.stream_chat(None, "What am I spending on?", [])]
+    assert events[-1]["event"] == "done"
+    assert "NOT in Russian" in captured["system_prompt"]
+
+    _use_fake_model(monkeypatch, [AIMessage(content="Вот ответ.")])
+    events = [e async for e in agent_service.stream_chat(None, "на что я трачу?", [])]
+    assert events[-1]["event"] == "done"
+    assert "отвечай по-русски" in captured["system_prompt"]

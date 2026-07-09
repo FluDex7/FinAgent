@@ -44,6 +44,23 @@ def _title_from_message(message: str) -> str:
     return trimmed[:40] + "…" if len(trimmed) > 40 else trimmed
 
 
+def _language_hint(message: str) -> str:
+    """Per-request answer-language directive.
+
+    The system prompt is written in Russian, and a generic "mirror the user's
+    language" rule buried in it loses to that: gpt-4o-mini kept answering English
+    questions in Russian. Deciding the language here (Cyrillic → Russian,
+    anything else → the user's own language) and stating it explicitly is
+    deterministic and actually sticks.
+    """
+    if re.search(r"[а-яё]", message, re.IGNORECASE):
+        return "Пользователь пишет по-русски — отвечай по-русски."
+    return (
+        "The user's last message is NOT in Russian. Reply in the user's language "
+        "(e.g. English for an English question), never in Russian."
+    )
+
+
 def _tool_detail(name: str, output: Any) -> str | None:
     """What to show when a user expands a tool badge in the chat.
 
@@ -168,14 +185,19 @@ class AgentService:
             # The model's own training cutoff is not "now" — without this it guesses
             # (has said "2023" outright), which throws off anything relative like
             # "последние 3 месяца" or "в этом году".
-            system_prompt = f"{SYSTEM_PROMPT}\n\nСегодняшняя дата: {date.today().isoformat()}."
+            prompt_parts = [
+                SYSTEM_PROMPT,
+                f"Сегодняшняя дата: {date.today().isoformat()}.",
+                _language_hint(message),
+            ]
             if statement_ids:
                 ids_note = ", ".join(statement_ids)
-                system_prompt = (
-                    f"{SYSTEM_PROMPT}\n\nОбласть данных этого вопроса уже определена и ограничена "
+                prompt_parts.append(
+                    "Область данных этого вопроса уже определена и ограничена "
                     f"statement_ids: {ids_note}. Данные уже доступны — сразу вызывай sql_query с "
                     "этими statement_ids. Не спрашивай период и не проси прикрепить/загрузить файл."
                 )
+            system_prompt = "\n\n".join(prompt_parts)
 
             tools = build_tools(self.transactions, self.statements, chat_model, self.settings)
             graph = build_agent_graph(chat_model, tools, system_prompt=system_prompt)
