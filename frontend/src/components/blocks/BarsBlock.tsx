@@ -1,4 +1,5 @@
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { useLocale } from '../../hooks/useT'
 import { normalizeMagnitude } from './normalizeMagnitude'
 
 interface BarPoint {
@@ -6,8 +7,8 @@ interface BarPoint {
   value: number
 }
 
-function formatNumber(n: number): string {
-  return new Intl.NumberFormat('ru-RU').format(Math.round(n))
+function formatNumber(n: number, locale: string): string {
+  return new Intl.NumberFormat(locale).format(Math.round(n))
 }
 
 function formatCompact(n: number): string {
@@ -18,6 +19,7 @@ function formatCompact(n: number): string {
 }
 
 function BarTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: BarPoint }> }) {
+  const locale = useLocale()
   if (!active || !payload || payload.length === 0) return null
   const point = payload[0].payload
   return (
@@ -27,7 +29,7 @@ function BarTooltip({ active, payload }: { active?: boolean; payload?: Array<{ p
     >
       <div style={{ color: 'var(--color-muted)' }}>{point.label}</div>
       <div className="font-mono font-semibold" style={{ color: 'var(--color-ink)' }}>
-        {formatNumber(point.value)}
+        {formatNumber(point.value, locale)}
       </div>
     </div>
   )

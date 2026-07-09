@@ -2,27 +2,29 @@ import { useEffect, useState } from 'react'
 import { listCategories, listMerchants } from '../api/categorization'
 import { getStatement, getStatementTransactions } from '../api/statements'
 import { useEscapeKey } from '../hooks/useEscapeKey'
+import { useLocale, useT } from '../hooks/useT'
 import type { CategoryOut, MerchantOut, StatementOut, TransactionOut } from '../api/types'
+import type { TranslationKey } from '../i18n'
 
 interface DocumentViewerProps {
   statementId: string
   onClose: () => void
 }
 
-const STATUS_LABEL: Record<string, string> = {
-  parsed: 'Распарсено',
-  parsing: 'Обрабатывается',
-  new: 'Новая',
-  error: 'Ошибка',
+const STATUS_KEY: Record<string, TranslationKey> = {
+  parsed: 'statusParsed',
+  parsing: 'statusParsing',
+  new: 'statusNew',
+  error: 'statusError',
 }
 
-function formatDate(value: string): string {
+function formatDate(value: string, locale: string): string {
   const d = new Date(value)
-  return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  return d.toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
-function formatAmount(value: number): string {
-  return new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value)
+function formatAmount(value: number, locale: string): string {
+  return new Intl.NumberFormat(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value)
 }
 
 function BackIcon() {
@@ -48,6 +50,8 @@ export function DocumentViewer({ statementId, onClose }: DocumentViewerProps) {
   const [merchants, setMerchants] = useState<MerchantOut[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const t = useT()
+  const locale = useLocale()
   useEscapeKey(onClose)
 
   useEffect(() => {
@@ -93,7 +97,7 @@ export function DocumentViewer({ statementId, onClose }: DocumentViewerProps) {
           className="inline-flex items-center gap-1.5 rounded-[9px] border px-2.5 py-1.5 text-[13px]"
           style={{ borderColor: 'var(--color-border)', color: 'var(--color-muted)' }}
         >
-          <BackIcon />В чат
+          <BackIcon />{t('backToChat')}
         </button>
         <div className="flex min-w-0 flex-col">
           <span className="overflow-hidden text-ellipsis whitespace-nowrap text-sm font-semibold" style={{ color: 'var(--color-ink)' }}>
@@ -117,7 +121,7 @@ export function DocumentViewer({ statementId, onClose }: DocumentViewerProps) {
         <div className="mx-auto max-w-[760px] p-6">
           {loading && (
             <div className="py-10 text-center text-sm" style={{ color: 'var(--color-muted)' }}>
-              Загрузка…
+              {t('loading')}
             </div>
           )}
           {error && (
@@ -136,14 +140,14 @@ export function DocumentViewer({ statementId, onClose }: DocumentViewerProps) {
                     className="h-1.5 w-1.5 rounded-full"
                     style={{ background: statement.status === 'parsed' ? 'var(--color-pos)' : 'var(--color-neg)' }}
                   />
-                  {STATUS_LABEL[statement.status] ?? statement.status}
+                  {STATUS_KEY[statement.status] ? t(STATUS_KEY[statement.status]) : statement.status}
                 </span>
                 {statement.dateFrom && statement.dateTo && (
                   <span
                     className="inline-flex items-center rounded-[10px] border px-3 py-1.5 text-[12.5px]"
                     style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)', color: 'var(--color-muted)' }}
                   >
-                    Период: {formatDate(statement.dateFrom)} – {formatDate(statement.dateTo)}
+                    {t('period')}: {formatDate(statement.dateFrom, locale)} – {formatDate(statement.dateTo, locale)}
                   </span>
                 )}
               </div>
@@ -153,10 +157,10 @@ export function DocumentViewer({ statementId, onClose }: DocumentViewerProps) {
                   className="grid px-4 py-2.5 text-[11px] uppercase tracking-wide"
                   style={{ gridTemplateColumns: '1fr 1.6fr 1.2fr 0.9fr', color: 'var(--color-faint)' }}
                 >
-                  <span>Дата</span>
-                  <span>Продавец</span>
-                  <span>Категория</span>
-                  <span className="text-right">Сумма</span>
+                  <span>{t('colDate')}</span>
+                  <span>{t('colMerchant')}</span>
+                  <span>{t('colCategory')}</span>
+                  <span className="text-right">{t('colAmount')}</span>
                 </div>
                 {transactions.map((tx) => {
                   const merchant = tx.merchantId ? merchantById.get(tx.merchantId) : undefined
@@ -168,7 +172,7 @@ export function DocumentViewer({ statementId, onClose }: DocumentViewerProps) {
                       style={{ gridTemplateColumns: '1fr 1.6fr 1.2fr 0.9fr', borderColor: 'var(--color-border)' }}
                     >
                       <span className="font-mono text-xs" style={{ color: 'var(--color-muted)' }}>
-                        {formatDate(tx.date)}
+                        {formatDate(tx.date, locale)}
                       </span>
                       <span className="font-medium" style={{ color: 'var(--color-ink)' }}>
                         {merchant?.displayName ?? merchant?.normalizedKey ?? tx.rawDescription}
@@ -186,14 +190,14 @@ export function DocumentViewer({ statementId, onClose }: DocumentViewerProps) {
                         className="text-right font-mono"
                         style={{ color: tx.amount < 0 ? 'var(--color-neg)' : 'var(--color-pos)' }}
                       >
-                        {formatAmount(tx.amount)}
+                        {formatAmount(tx.amount, locale)}
                       </span>
                     </div>
                   )
                 })}
               </div>
               <p className="mt-3.5 text-center text-xs" style={{ color: 'var(--color-faint)' }}>
-                Всего транзакций: {transactions.length}
+                {t('totalTransactions', { n: transactions.length })}
               </p>
             </>
           )}

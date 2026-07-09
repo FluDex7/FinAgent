@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
+import { useT } from '../hooks/useT'
 import { useAppStore } from '../store/useAppStore'
 import type { BlockOut, MessageOut, ToolCallOut } from '../api/types'
 import { BlockRenderer } from './blocks/BlockRenderer'
@@ -40,6 +41,7 @@ function ToolIcon() {
 }
 
 function ScopeBanner({ scope }: { scope: { files: string[]; auto: boolean } }) {
+  const t = useT()
   return (
     <div
       className="mb-3 inline-flex items-center gap-2 rounded-[10px] border px-3 py-1.5 text-[12.5px]"
@@ -49,7 +51,7 @@ function ScopeBanner({ scope }: { scope: { files: string[]; auto: boolean } }) {
         <path d="M4 6h16M4 12h16M4 18h10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
       </svg>
       <span style={{ color: 'var(--color-muted)' }}>
-        {scope.auto ? 'Агент сам определил область:' : 'Указанная область:'}
+        {scope.auto ? t('scopeAuto') : t('scopeManual')}
       </span>
       {scope.files.map((f) => (
         <span
@@ -66,6 +68,7 @@ function ScopeBanner({ scope }: { scope: { files: string[]; auto: boolean } }) {
 
 function ToolTimeline({ tools }: { tools: ToolCallOut[] }) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
+  const t = useT()
 
   return (
     <div className="mb-3.5 flex flex-col gap-1.5">
@@ -78,7 +81,7 @@ function ToolTimeline({ tools }: { tools: ToolCallOut[] }) {
             strokeLinecap="round"
           />
         </svg>
-        Инструменты
+        {t('toolsLabel')}
       </div>
       <div className="flex flex-wrap gap-1.5">
         {tools.map((tool) => (
@@ -164,6 +167,7 @@ function UserBubble({ message }: { message: MessageOut }) {
 
 function AgentBubble({ data }: { data: AgentViewData }) {
   const sendMessage = useAppStore((s) => s.sendMessage)
+  const t = useT()
   const isThinking = data.isStreaming && !data.text && !(data.tools && data.tools.length)
 
   return (
@@ -172,7 +176,7 @@ function AgentBubble({ data }: { data: AgentViewData }) {
       <div className="min-w-0 flex-1">
         {isThinking && (
           <div className="flex h-7 items-center gap-2" style={{ color: 'var(--color-muted)' }}>
-            <span className="text-[13.5px]">FinAgent анализирует</span>
+            <span className="text-[13.5px]">{t('agentThinking')}</span>
             <span className="inline-flex gap-1">
               {[0, 0.2, 0.4].map((delay) => (
                 <span

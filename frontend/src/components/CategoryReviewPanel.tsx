@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useEscapeKey } from '../hooks/useEscapeKey'
+import { useT } from '../hooks/useT'
 import { useAppStore } from '../store/useAppStore'
 
 interface CategoryReviewPanelProps {
@@ -55,6 +56,7 @@ interface NewCategoryDialogProps {
 }
 
 function NewCategoryDialog({ onClose, onCreate }: NewCategoryDialogProps) {
+  const t = useT()
   const [name, setName] = useState('')
   const [color, setColor] = useState(COLOR_PRESETS[0])
   const [saving, setSaving] = useState(false)
@@ -80,24 +82,24 @@ function NewCategoryDialog({ onClose, onCreate }: NewCategoryDialogProps) {
         style={{ background: 'var(--color-sheet)', borderColor: 'var(--color-border)', boxShadow: '0 24px 60px rgba(15,23,42,.3)' }}
       >
         <div className="mb-4 text-[15px] font-semibold" style={{ color: 'var(--color-ink)' }}>
-          Новая категория
+          {t('newCategory')}
         </div>
 
         <label className="mb-1.5 block text-[12px] font-medium" style={{ color: 'var(--color-muted)' }}>
-          Название
+          {t('categoryName')}
         </label>
         <input
           autoFocus
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && void submit()}
-          placeholder="Например, «Подписки»"
+          placeholder={t('categoryNamePlaceholder')}
           className="mb-4 w-full rounded-[10px] border px-3 py-2 text-[13.5px] outline-none"
           style={{ borderColor: 'var(--color-accent)', background: 'var(--color-surface)', color: 'var(--color-ink)' }}
         />
 
         <label className="mb-2 block text-[12px] font-medium" style={{ color: 'var(--color-muted)' }}>
-          Цвет
+          {t('categoryColor')}
         </label>
         <div className="mb-5 flex flex-wrap gap-2">
           {COLOR_PRESETS.map((preset) => (
@@ -120,7 +122,7 @@ function NewCategoryDialog({ onClose, onCreate }: NewCategoryDialogProps) {
             className="rounded-[9px] border px-4 py-2 text-[13px] font-medium"
             style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)', color: 'var(--color-ink)' }}
           >
-            Отмена
+            {t('cancel')}
           </button>
           <button
             type="button"
@@ -129,7 +131,7 @@ function NewCategoryDialog({ onClose, onCreate }: NewCategoryDialogProps) {
             className="rounded-[9px] px-4 py-2 text-[13px] font-semibold text-white"
             style={{ background: 'var(--color-accent)', opacity: name.trim() && !saving ? 1 : 0.5 }}
           >
-            Создать
+            {t('create')}
           </button>
         </div>
       </div>
@@ -146,6 +148,7 @@ export function CategoryReviewPanel({ onClose }: CategoryReviewPanelProps) {
   const createCategory = useAppStore((s) => s.createCategory)
   const recategorizeMerchant = useAppStore((s) => s.recategorizeMerchant)
 
+  const t = useT()
   const [createOpen, setCreateOpen] = useState(false)
   const [pendingAssignFor, setPendingAssignFor] = useState<string | null>(null)
   useEscapeKey(onClose)
@@ -184,10 +187,10 @@ export function CategoryReviewPanel({ onClose }: CategoryReviewPanelProps) {
           className="inline-flex items-center gap-1.5 rounded-[9px] border px-2.5 py-1.5 text-[13px]"
           style={{ borderColor: 'var(--color-border)', color: 'var(--color-muted)' }}
         >
-          <BackIcon />В чат
+          <BackIcon />{t('backToChat')}
         </button>
         <span className="text-sm font-semibold" style={{ color: 'var(--color-ink)' }}>
-          Требуют категории
+          {t('needsCategory')}
         </span>
         <button
           type="button"
@@ -199,7 +202,7 @@ export function CategoryReviewPanel({ onClose }: CategoryReviewPanelProps) {
           style={{ borderColor: 'var(--color-border)', color: 'var(--color-accent)' }}
         >
           <PlusIcon />
-          Новая категория
+          {t('newCategory')}
         </button>
         <button
           type="button"
@@ -215,12 +218,12 @@ export function CategoryReviewPanel({ onClose }: CategoryReviewPanelProps) {
         <div className="mx-auto max-w-[760px] p-6">
           {loading && (
             <div className="py-10 text-center text-sm" style={{ color: 'var(--color-muted)' }}>
-              Загрузка…
+              {t('loading')}
             </div>
           )}
           {!loading && merchants.length === 0 && (
             <div className="py-10 text-center text-sm" style={{ color: 'var(--color-muted)' }}>
-              Все продавцы категоризированы
+              {t('allCategorized')}
             </div>
           )}
           {!loading &&
@@ -237,7 +240,7 @@ export function CategoryReviewPanel({ onClose }: CategoryReviewPanelProps) {
                   {merchant.sampleDescription && (
                     <div className="mt-0.5 overflow-hidden text-ellipsis whitespace-nowrap text-[11.5px]" style={{ color: 'var(--color-faint)' }}>
                       {merchant.sampleDescription}
-                      {merchant.transactionCount > 1 && ` · ${merchant.transactionCount} операций`}
+                      {merchant.transactionCount > 1 && ` · ${t('txCount', { n: merchant.transactionCount })}`}
                     </div>
                   )}
                 </div>
@@ -256,14 +259,14 @@ export function CategoryReviewPanel({ onClose }: CategoryReviewPanelProps) {
                   style={{ borderColor: 'var(--color-border)', background: 'var(--color-sheet)', color: 'var(--color-ink)' }}
                 >
                   <option value="" disabled>
-                    Выбрать категорию
+                    {t('chooseCategory')}
                   </option>
                   {categories.map((cat) => (
                     <option key={cat.id} value={cat.id}>
                       {cat.name}
                     </option>
                   ))}
-                  <option value="__new__">+ Новая категория…</option>
+                  <option value="__new__">{t('newCategoryOption')}</option>
                 </select>
               </div>
             ))}

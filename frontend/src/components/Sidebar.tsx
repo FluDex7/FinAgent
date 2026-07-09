@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useT } from '../hooks/useT'
 import { useAppStore } from '../store/useAppStore'
 import { ConfirmDialog } from './ConfirmDialog'
 
@@ -129,6 +130,7 @@ export function Sidebar({
   const reviewCount = useAppStore((s) => s.merchantsNeedingReview.length)
   const renameDocument = useAppStore((s) => s.renameDocument)
   const deleteDocument = useAppStore((s) => s.deleteDocument)
+  const t = useT()
 
   const [openFolders, setOpenFolders] = useState<Record<string, boolean>>({})
   const [editingChatId, setEditingChatId] = useState<string | null>(null)
@@ -172,10 +174,10 @@ export function Sidebar({
   const providerLabel = health
     ? health.llm.ok
       ? health.llm.provider === 'openai'
-        ? 'OpenAI подключён'
-        : 'Ollama (локально)'
+        ? t('openaiConnected')
+        : t('ollamaLocal')
       : health.llm.detail
-    : 'Проверка...'
+    : t('llmChecking')
 
   return (
     <aside
@@ -198,7 +200,7 @@ export function Sidebar({
           className="ml-auto rounded-full border px-1.5 py-0.5 text-[10px] font-semibold"
           style={{ color: 'var(--color-faint)', borderColor: 'var(--color-border)' }}
         >
-          локально
+          {t('localBadge')}
         </span>
       </div>
 
@@ -213,7 +215,7 @@ export function Sidebar({
           style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)', color: 'var(--color-ink)' }}
         >
           <PlusIcon />
-          Новый чат
+          {t('newChat')}
         </button>
       </div>
 
@@ -229,7 +231,7 @@ export function Sidebar({
             style={{ borderColor: 'var(--color-border)', color: 'var(--color-ink)' }}
           >
             <TagIcon />
-            Требуют категории
+            {t('needsCategory')}
             <span
               className="ml-auto rounded-full px-1.5 py-0.5 text-[11px] font-semibold text-white"
               style={{ background: 'var(--color-accent)' }}
@@ -246,7 +248,7 @@ export function Sidebar({
             className="text-[11px] font-semibold uppercase tracking-wider"
             style={{ color: 'var(--color-faint)' }}
           >
-            Документы
+            {t('documents')}
           </span>
         </div>
 
@@ -301,7 +303,7 @@ export function Sidebar({
                         key={file.id}
                         type="button"
                         disabled={!isParsed}
-                        title={isParsed ? undefined : 'Файл ещё не распознан'}
+                        title={isParsed ? undefined : t('fileNotParsed')}
                         onClick={() => onOpenDocument(file.id)}
                         onContextMenu={(e) => {
                           if (!hasStatement) return
@@ -329,7 +331,7 @@ export function Sidebar({
           style={{ color: 'var(--color-accent)' }}
         >
           <PlusIcon />
-          Загрузить выписку
+          {t('uploadStatement')}
         </button>
 
         <div className="px-2 pb-1.5 pt-4">
@@ -337,7 +339,7 @@ export function Sidebar({
             className="text-[11px] font-semibold uppercase tracking-wider"
             style={{ color: 'var(--color-faint)' }}
           >
-            Чаты
+            {t('chats')}
           </span>
         </div>
         {chats.map((chat) => {
@@ -382,7 +384,7 @@ export function Sidebar({
                   </button>
                   <button
                     type="button"
-                    title="Переименовать"
+                    title={t('rename')}
                     onClick={() => startRename(chat.id, chat.title)}
                     className="flex h-[26px] w-[26px] flex-shrink-0 items-center justify-center rounded-md"
                     style={{ color: 'var(--color-faint)' }}
@@ -391,7 +393,7 @@ export function Sidebar({
                   </button>
                   <button
                     type="button"
-                    title="Удалить"
+                    title={t('delete')}
                     onClick={() => setPendingDelete({ id: chat.id, title: chat.title })}
                     className="flex h-[26px] w-[26px] flex-shrink-0 items-center justify-center rounded-md"
                     style={{ color: 'var(--color-faint)' }}
@@ -428,8 +430,8 @@ export function Sidebar({
 
       {pendingDelete && (
         <ConfirmDialog
-          title="Удалить чат?"
-          message={`Чат «${pendingDelete.title}» и его история будут удалены без возможности восстановления.`}
+          title={t('deleteChatTitle')}
+          message={t('deleteChatMessage', { name: pendingDelete.title })}
           onCancel={() => setPendingDelete(null)}
           onConfirm={() => {
             deleteChatAction(pendingDelete.id)
@@ -458,7 +460,7 @@ export function Sidebar({
               style={{ color: 'var(--color-ink)' }}
             >
               <RenameIcon />
-              Переименовать
+              {t('rename')}
             </button>
             <button
               type="button"
@@ -470,7 +472,7 @@ export function Sidebar({
               style={{ color: 'var(--color-neg)' }}
             >
               <DeleteIcon />
-              Удалить
+              {t('delete')}
             </button>
           </div>
         </>
@@ -478,8 +480,8 @@ export function Sidebar({
 
       {pendingFileDelete && (
         <ConfirmDialog
-          title="Удалить файл?"
-          message={`Файл «${pendingFileDelete.name}» и все его транзакции будут удалены без возможности восстановления.`}
+          title={t('deleteFileTitle')}
+          message={t('deleteFileMessage', { name: pendingFileDelete.name })}
           onCancel={() => setPendingFileDelete(null)}
           onConfirm={() => {
             deleteDocument(pendingFileDelete.id)

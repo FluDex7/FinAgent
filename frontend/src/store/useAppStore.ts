@@ -8,6 +8,7 @@ import {
 } from '../api/categorization'
 import { getHealth } from '../api/health'
 import { deleteStatement, getDocumentsTree, renameStatement } from '../api/statements'
+import type { Language } from '../i18n'
 import type {
   BlockOut,
   CategoryOut,
@@ -33,6 +34,9 @@ interface AppStore {
   theme: Theme
   toggleTheme: () => void
   setTheme: (theme: Theme) => void
+
+  language: Language
+  setLanguage: (language: Language) => void
 
   documentsTree: DocFolderOut[]
   documentsLoading: boolean
@@ -76,6 +80,12 @@ function readStoredTheme(): Theme {
   return localStorage.getItem('fa-theme') === 'dark' ? 'dark' : 'light'
 }
 
+function readStoredLanguage(): Language {
+  // English by default — the app presents in English until switched, and the
+  // choice sticks across sessions.
+  return localStorage.getItem('fa-lang') === 'ru' ? 'ru' : 'en'
+}
+
 function materializeStreamingMessage(get: () => AppStore, set: (partial: Partial<AppStore>) => void): void {
   const streaming = get().streamingMessage
   if (!streaming || (!streaming.text && !streaming.tools.length && !streaming.blocks.length)) return
@@ -106,6 +116,16 @@ export const useAppStore = create<AppStore>((set, get) => ({
     localStorage.setItem('fa-theme', next)
     document.documentElement.setAttribute('data-theme', next)
     set({ theme: next })
+  },
+
+  language: readStoredLanguage(),
+  setLanguage: (next: Language) => {
+    localStorage.setItem('fa-lang', next)
+    document.documentElement.lang = next
+    set({ language: next })
+    // Health-check details come from the backend already localized —
+    // re-fetch them in the newly selected language.
+    void get().loadHealth()
   },
 
   documentsTree: [],
@@ -141,7 +161,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   health: null,
   loadHealth: async () => {
     try {
-      const health = await getHealth()
+      const health = await getHealth(get().language)
       set({ health })
     } catch (err) {
       set({ error: (err as Error).message })

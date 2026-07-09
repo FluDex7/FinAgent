@@ -1,4 +1,5 @@
 import { lazy, Suspense } from 'react'
+import { useT } from '../../hooks/useT'
 import type { BlockOut } from '../../api/types'
 import { MetricsBlock } from './MetricsBlock'
 import { TableBlock } from './TableBlock'
@@ -8,12 +9,13 @@ const BarsBlock = lazy(() => import('./BarsBlock').then((m) => ({ default: m.Bar
 const LineBlock = lazy(() => import('./LineBlock').then((m) => ({ default: m.LineBlock })))
 
 function ChartFallback() {
+  const t = useT()
   return (
     <div
       className="flex h-[180px] items-center justify-center rounded-2xl border text-[12.5px]"
       style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)', color: 'var(--color-muted)' }}
     >
-      Загрузка графика…
+      {t('chartLoading')}
     </div>
   )
 }

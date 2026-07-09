@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import type { DragEvent } from 'react'
 import { uploadStatement } from '../../api/statements'
 import { useEscapeKey } from '../../hooks/useEscapeKey'
+import { useT } from '../../hooks/useT'
 import { useAppStore } from '../../store/useAppStore'
 
 interface UploadModalProps {
@@ -36,11 +37,8 @@ function FileIcon() {
   )
 }
 
-function formatSize(bytes: number): string {
-  return `${(bytes / 1024 / 1024).toFixed(1)} МБ`
-}
-
 export function UploadModal({ onClose }: UploadModalProps) {
+  const t = useT()
   const [phase, setPhase] = useState<Phase>('idle')
   const [file, setFile] = useState<File | null>(null)
   const [folder, setFolder] = useState('')
@@ -81,7 +79,7 @@ export function UploadModal({ onClose }: UploadModalProps) {
       >
         <div className="flex items-center border-b px-5 py-[14px]" style={{ borderColor: 'var(--color-border)' }}>
           <span className="text-[15px] font-semibold" style={{ color: 'var(--color-ink)' }}>
-            Загрузка выписки
+            {t('uploadTitle')}
           </span>
           <button
             type="button"
@@ -98,12 +96,12 @@ export function UploadModal({ onClose }: UploadModalProps) {
             <>
               <div className="mb-3 flex items-center gap-2.5 rounded-[10px] border px-3 py-2" style={{ borderColor: 'var(--color-border)' }}>
                 <span className="text-[12.5px]" style={{ color: 'var(--color-muted)' }}>
-                  Папка
+                  {t('folder')}
                 </span>
                 <input
                   value={folder}
                   onChange={(e) => setFolder(e.target.value)}
-                  placeholder="например, 2025-01 (необязательно)"
+                  placeholder={t('folderPlaceholder')}
                   className="flex-1 border-0 bg-transparent font-mono text-[12.5px] outline-none"
                   style={{ color: 'var(--color-ink)' }}
                 />
@@ -117,10 +115,10 @@ export function UploadModal({ onClose }: UploadModalProps) {
               >
                 <UploadIcon />
                 <span className="text-sm font-semibold" style={{ color: 'var(--color-ink)' }}>
-                  Перетащите файл или выберите
+                  {t('dragOrChoose')}
                 </span>
                 <span className="text-[12.5px]" style={{ color: 'var(--color-muted)' }}>
-                  PDF или CSV
+                  {t('pdfOrCsv')}
                 </span>
               </div>
               <input
@@ -134,7 +132,7 @@ export function UploadModal({ onClose }: UploadModalProps) {
                 }}
               />
               <p className="mt-3 text-center text-xs" style={{ color: 'var(--color-faint)' }}>
-                Поддерживаются PDF (через OCR) и CSV. Данные не покидают вашу машину.
+                {t('uploadNote')}
               </p>
             </>
           )}
@@ -147,13 +145,13 @@ export function UploadModal({ onClose }: UploadModalProps) {
                   {file.name}
                 </span>
                 <span className="ml-auto text-[11.5px]" style={{ color: 'var(--color-faint)' }}>
-                  {formatSize(file.size)}
+                  {t('megabytes', { n: (file.size / 1024 / 1024).toFixed(1) })}
                 </span>
               </div>
 
               {phase === 'uploading' && (
                 <div className="flex items-center justify-center gap-2 py-4" style={{ color: 'var(--color-muted)' }}>
-                  <span className="text-[13.5px]">Загрузка и разбор</span>
+                  <span className="text-[13.5px]">{t('uploading')}</span>
                   <span className="inline-flex gap-1">
                     {[0, 0.2, 0.4].map((delay) => (
                       <span
@@ -179,7 +177,7 @@ export function UploadModal({ onClose }: UploadModalProps) {
                   className="w-full rounded-[10px] py-[11px] text-[13.5px] font-semibold text-white"
                   style={{ background: 'var(--color-accent)' }}
                 >
-                  Готово — открыть чат
+                  {t('doneOpenChat')}
                 </button>
               )}
             </>
