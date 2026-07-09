@@ -26,7 +26,14 @@ async def session():
 
 @pytest.fixture
 def agent_service(session, tmp_path) -> AgentService:
-    return AgentService(session, Settings(statements_dir=str(tmp_path)))
+    # Self-check is on by default in production but exercised by its own tests —
+    # here it would just add a critic call to every canned-response sequence.
+    return AgentService(session, Settings(statements_dir=str(tmp_path), agent_self_check=False))
+
+
+@pytest.fixture
+def checked_agent_service(session, tmp_path) -> AgentService:
+    return AgentService(session, Settings(statements_dir=str(tmp_path), agent_self_check=True))
 
 
 def _use_fake_model(monkeypatch, responses: list[AIMessage]) -> None:
@@ -140,6 +147,48 @@ async def test_stream_chat_sets_detail_for_tools_beyond_sql_query_and_plot_chart
     persisted_tools = {t.name: t.detail for t in messages[-1].tools}
     assert persisted_tools["find_subscriptions"] is not None
     assert persisted_tools["rag_lookup"] == "Т-Банк использует формат даты ДД.ММ.ГГГГ."
+
+
+async def test_self_check_revises_rejected_answer_and_shows_badge(
+    monkeypatch, checked_agent_service
+):
+    # Critic flow end-to-end: draft answer -> critic rejects -> agent revises.
+    # The user must see ONLY the revision (draft never emitted/persisted), plus
+    # a self_check badge carrying the critic's reason.
+    draft = AIMessage(content="You spend the most on Transfers.")
+    verdict = AIMessage(content='{"ok": false, "fix": "add a category breakdown chart"}')
+    revised = AIMessage(content="Here is the full breakdown with a chart.")
+    _use_fake_model(monkeypatch, [draft, verdict, revised])
+
+    events = [e async for e in checked_agent_service.stream_chat(None, "spending?", [])]
+
+    token_text = "".join(e["data"]["text"] for e in events if e["event"] == "token")
+    assert token_text == "Here is the full breakdown with a chart."
+    assert "Transfers" not in token_text
+
+    badge_events = [e for e in events if e["event"] == "tool_end"]
+    assert badge_events and badge_events[0]["data"]["name"] == "self_check"
+    assert badge_events[0]["data"]["detail"] == "add a category breakdown chart"
+
+    chat_id = events[0]["data"]["chatId"]
+    messages = await checked_agent_service.get_messages(chat_id)
+    assert messages[-1].text == "Here is the full breakdown with a chart."
+    assert messages[-1].tools is not None
+    assert messages[-1].tools[0].name == "self_check"
+
+
+async def test_self_check_approved_answer_passes_through(monkeypatch, checked_agent_service):
+    answer = AIMessage(content="Вот разбор трат за июнь.")
+    verdict = AIMessage(content='{"ok": true}')
+    _use_fake_model(monkeypatch, [answer, verdict])
+
+    events = [e async for e in checked_agent_service.stream_chat(None, "траты за июнь", [])]
+
+    token_text = "".join(e["data"]["text"] for e in events if e["event"] == "token")
+    assert token_text == "Вот разбор трат за июнь."
+    badge = next(e for e in events if e["event"] == "tool_end")
+    assert badge["data"]["name"] == "self_check"
+    assert badge["data"]["detail"] == "OK"
 
 
 async def test_stream_chat_discards_narration_from_a_tool_calling_turn(monkeypatch, agent_service):
@@ -326,11 +375,9 @@ async def test_resolved_statement_ids_are_injected_into_system_prompt(monkeypatc
     captured: dict = {}
     from app.modules.agent.graph import build_agent_graph as real_build_agent_graph
 
-    def spy_build(chat_model, tools, system_prompt="", reminder=None):
+    def spy_build(chat_model, tools, system_prompt="", **kwargs):
         captured["system_prompt"] = system_prompt
-        return real_build_agent_graph(
-            chat_model, tools, system_prompt=system_prompt, reminder=reminder
-        )
+        return real_build_agent_graph(chat_model, tools, system_prompt=system_prompt, **kwargs)
 
     monkeypatch.setattr(service_module, "build_agent_graph", spy_build)
 
@@ -353,10 +400,10 @@ async def test_answer_language_reminder_matches_message_language(monkeypatch, ag
     captured: dict = {}
     from app.modules.agent.graph import build_agent_graph as real_build_agent_graph
 
-    def spy_build(chat_model, tools, system_prompt="", reminder=None):
+    def spy_build(chat_model, tools, system_prompt="", reminder=None, **kwargs):
         captured["reminder"] = reminder
         return real_build_agent_graph(
-            chat_model, tools, system_prompt=system_prompt, reminder=reminder
+            chat_model, tools, system_prompt=system_prompt, reminder=reminder, **kwargs
         )
 
     monkeypatch.setattr(service_module, "build_agent_graph", spy_build)

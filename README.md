@@ -30,6 +30,7 @@ Upload a PDF or CSV, then ask questions in plain language — *"what am I spendi
 - **MLflow tracing** of every agent run — fully local, no external service.
 - **Optional web search** (Tavily) for things no local data can answer — exchange rates, current events. Off by default; the agent is instructed to never send it any of your financial data.
 - **English / Russian UI** — switchable in Settings, English by default. The agent itself replies in whatever language you ask in.
+- **Self-check pass** — a critic node reviews every answer (right language, chart + period on broad questions, transfers not passed off as spending, no leaked SQL) and sends it back for one revision when it fails. Visible in the chat as a `self_check` badge; disable with `AGENT_SELF_CHECK=false`.
 - Light/dark theme. Zero telemetry.
 
 ## Quick Start
@@ -78,6 +79,7 @@ All variables live in [`.env.example`](.env.example).
 | `STATEMENTS_DIR` | `./data` | Where uploaded statements are stored |
 | `MLFLOW_TRACKING_URI` | `sqlite:///./mlflow.db` | Local MLflow tracking store |
 | `MLFLOW_EXPERIMENT_NAME` | `finagent` | MLflow experiment name |
+| `AGENT_SELF_CHECK` | `true` | Critic pass over every answer before it reaches you (one extra LLM call per message). Set `false` to trade quality for speed/cost. |
 | `TAVILY_API_KEY` | — | Optional. Enables `web_search` for external facts (exchange rates, current events). Get a key at [tavily.com](https://tavily.com) — the only tool that leaves your machine, and only ever for non-financial queries. |
 
 Go fully offline with Ollama:
